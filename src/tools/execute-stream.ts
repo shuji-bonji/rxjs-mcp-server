@@ -1,6 +1,161 @@
 import { z } from 'zod';
-import { Observable, from, of, interval, range, timer, throwError, EMPTY, merge, concat, zip, combineLatest, forkJoin } from 'rxjs';
-import { map, filter, take, skip, debounceTime, distinctUntilChanged, switchMap, mergeMap, concatMap, exhaustMap, tap, catchError, retry, timeout, delay, scan, reduce, throttleTime, sampleTime, auditTime, bufferTime, bufferCount, startWith, endWith, takeUntil, takeWhile, skipWhile, finalize } from 'rxjs/operators';
+// RxJS 7.2+ modern import style - all from 'rxjs' except special modules
+import {
+  // Observable & Subject classes
+  Observable,
+  Subject,
+  BehaviorSubject,
+  ReplaySubject,
+  AsyncSubject,
+  connectable,
+
+  // Creation Functions - basic
+  of,
+  from,
+  fromEvent,
+  interval,
+  timer,
+
+  // Creation Functions - loop
+  range,
+  generate,
+
+  // Creation Functions - combination
+  concat,
+  merge,
+  combineLatest,
+  zip,
+  forkJoin,
+
+  // Creation Functions - selection
+  race,
+  partition,
+
+  // Creation Functions - conditional
+  iif,
+  defer,
+
+  // Creation Functions - control
+  scheduled,
+
+  // Other creation utilities
+  throwError,
+  EMPTY,
+  NEVER,
+  firstValueFrom,
+  lastValueFrom,
+
+  // Transformation operators
+  map,
+  scan,
+  mergeScan,
+  reduce,
+  pairwise,
+  groupBy,
+  mergeMap,
+  switchMap,
+  concatMap,
+  exhaustMap,
+  expand,
+  buffer,
+  bufferTime,
+  bufferCount,
+  bufferWhen,
+  bufferToggle,
+  windowTime,
+  window as windowOp,
+  windowCount,
+  windowToggle,
+  windowWhen,
+
+  // Filtering operators
+  filter,
+  take,
+  takeLast,
+  takeWhile,
+  skip,
+  skipLast,
+  skipWhile,
+  skipUntil,
+  first,
+  last,
+  elementAt,
+  find,
+  findIndex,
+  debounceTime,
+  throttleTime,
+  auditTime,
+  audit,
+  sampleTime,
+  sample,
+  ignoreElements,
+  distinct,
+  distinctUntilChanged,
+  distinctUntilKeyChanged,
+
+  // Combination operators (pipeable)
+  concatWith,
+  mergeWith,
+  combineLatestWith,
+  zipWith,
+  raceWith,
+  withLatestFrom,
+  mergeAll,
+  concatAll,
+  switchAll,
+  exhaustAll,
+  combineLatestAll,
+  zipAll,
+
+  // Utility operators
+  tap,
+  delay,
+  delayWhen,
+  timeout,
+  takeUntil,
+  finalize,
+  repeat,
+  retry,
+  startWith,
+  endWith,
+  toArray,
+  materialize,
+  dematerialize,
+  observeOn,
+  subscribeOn,
+  timestamp,
+
+  // Conditional operators
+  defaultIfEmpty,
+  every,
+  isEmpty,
+
+  // Error handling operators
+  catchError,
+  retryWhen,
+
+  // Multicasting operators
+  share,
+  shareReplay,
+
+  // Other useful operators
+  pluck,
+  mapTo,
+  switchMapTo,
+  mergeMapTo,
+  concatMapTo,
+  count,
+  max,
+  min,
+  single,
+  throwIfEmpty,
+  connect,
+  refCount,
+} from 'rxjs';
+
+// Special module imports (require separate paths)
+import { ajax } from 'rxjs/ajax';
+
 import { ToolImplementation, ToolResponse, StreamExecutionResult } from '../types.js';
 
 // Input schema
@@ -28,24 +183,159 @@ async function executeRxJSCode(code: string, takeCount: number, timeoutMs: numbe
   try {
     // Create a safe execution context with RxJS imports
     const context = {
-      // Creation operators
-      of, from, interval, range, timer, throwError, EMPTY,
-      // Combination operators  
-      merge, concat, zip, combineLatest, forkJoin,
-      // Transformation operators
-      map, switchMap, mergeMap, concatMap, exhaustMap, scan, reduce,
-      // Filtering operators
-      filter, take, skip, takeUntil, takeWhile, skipWhile, distinctUntilChanged,
-      // Utility operators
-      tap, delay, timeout, startWith, endWith, finalize,
-      // Error handling
-      catchError, retry,
-      // Rate limiting
-      debounceTime, throttleTime, sampleTime, auditTime,
-      // Buffering
-      bufferTime, bufferCount,
-      // Observable class
+      // Observable and Subject classes
       Observable,
+      Subject,
+      BehaviorSubject,
+      ReplaySubject,
+      AsyncSubject,
+
+      // Creation Functions - basic
+      of,
+      from,
+      fromEvent,
+      interval,
+      timer,
+
+      // Creation Functions - loop
+      range,
+      generate,
+
+      // Creation Functions - http
+      ajax,
+
+      // Creation Functions - combination
+      concat,
+      merge,
+      combineLatest,
+      zip,
+      forkJoin,
+
+      // Creation Functions - selection
+      race,
+      partition,
+
+      // Creation Functions - conditional
+      iif,
+      defer,
+
+      // Creation Functions - control
+      scheduled,
+
+      // Other creation utilities
+      throwError,
+      EMPTY,
+      NEVER,
+      firstValueFrom,
+      lastValueFrom,
+
+      // Transformation operators
+      map,
+      scan,
+      mergeScan,
+      reduce,
+      pairwise,
+      groupBy,
+      mergeMap,
+      switchMap,
+      concatMap,
+      exhaustMap,
+      expand,
+      buffer,
+      bufferTime,
+      bufferCount,
+      bufferWhen,
+      bufferToggle,
+      windowTime,
+      window: windowOp,
+      windowCount,
+      windowToggle,
+      windowWhen,
+
+      // Filtering operators
+      filter,
+      take,
+      takeLast,
+      takeWhile,
+      skip,
+      skipLast,
+      skipWhile,
+      skipUntil,
+      first,
+      last,
+      elementAt,
+      find,
+      findIndex,
+      debounceTime,
+      throttleTime,
+      auditTime,
+      audit,
+      sampleTime,
+      sample,
+      ignoreElements,
+      distinct,
+      distinctUntilChanged,
+      distinctUntilKeyChanged,
+
+      // Combination operators (pipeable)
+      concatWith,
+      mergeWith,
+      combineLatestWith,
+      zipWith,
+      raceWith,
+      withLatestFrom,
+      mergeAll,
+      concatAll,
+      switchAll,
+      exhaustAll,
+      combineLatestAll,
+      zipAll,
+
+      // Utility operators
+      tap,
+      delay,
+      delayWhen,
+      timeout,
+      takeUntil,
+      finalize,
+      repeat,
+      retry,
+      startWith,
+      endWith,
+      toArray,
+      materialize,
+      dematerialize,
+      observeOn,
+      subscribeOn,
+      timestamp,
+
+      // Conditional operators
+      defaultIfEmpty,
+      every,
+      isEmpty,
+
+      // Error handling operators
+      catchError,
+      retryWhen,
+
+      // Multicasting operators
+      share,
+      shareReplay,
+
+      // Other useful operators
+      pluck,
+      mapTo,
+      switchMapTo,
+      mergeMapTo,
+      concatMapTo,
+      count,
+      max,
+      min,
+      single,
+      throwIfEmpty,
+      connect,
+      connectable,
+      refCount,
     };
 
     // Create function with context
