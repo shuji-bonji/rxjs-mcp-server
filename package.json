@@ -29,6 +29,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:mcp": "node test-mcp-server.mjs",
     "test:inspector": "npx @modelcontextprotocol/inspector dist/index.js",
     "clean": "rm -rf dist",
     "prepare": "npm run build"
