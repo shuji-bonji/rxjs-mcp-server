@@ -120,9 +120,16 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
   } else if (lifecycle === 'react') {
     // Check for useEffect cleanup
     const hasUseEffect = /useEffect\s*\(/.test(code);
-    const hasReturn = /return\s+\(\s*\)?\s*=>\s*{/.test(code);
-    
-    if (hasUseEffect && subscribeMatches.length > 0 && !hasReturn) {
+    // Match various cleanup return patterns:
+    // - return () => { ... }
+    // - return () => subscription.unsubscribe()
+    // - return () => sub.unsubscribe();
+    // - return cleanup;
+    // - return function cleanup() { ... }
+    const hasCleanupReturn = /return\s+(\(\s*\)\s*=>|function\s*\w*\s*\(|[a-zA-Z_$][\w$]*\s*;)/.test(code);
+    const hasUnsubscribeInReturn = /return\s+\(\s*\)\s*=>\s*\w+\.unsubscribe\s*\(\s*\)/.test(code);
+
+    if (hasUseEffect && subscribeMatches.length > 0 && !hasCleanupReturn && !hasUnsubscribeInReturn) {
       result.recommendations.push('Return cleanup function from useEffect to unsubscribe');
     }
   } else if (lifecycle === 'vue') {

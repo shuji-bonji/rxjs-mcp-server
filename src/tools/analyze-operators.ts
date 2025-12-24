@@ -159,17 +159,43 @@ function extractCreationFunctions(code: string): string[] {
   return functions;
 }
 
+// Extract content from balanced parentheses (handles nested parens)
+function extractBalancedContent(code: string, startIndex: number): string {
+  let depth = 0;
+  let start = -1;
+  let i = startIndex;
+
+  while (i < code.length) {
+    if (code[i] === '(') {
+      if (depth === 0) {
+        start = i + 1;
+      }
+      depth++;
+    } else if (code[i] === ')') {
+      depth--;
+      if (depth === 0) {
+        return code.slice(start, i);
+      }
+    }
+    i++;
+  }
+  return '';
+}
+
 // Extract operators from code
 function extractOperators(code: string): string[] {
   const operators: string[] = [];
 
-  // Match operators inside .pipe()
-  const pipeRegex = /\.pipe\s*\(([^)]*(?:\([^)]*\)[^)]*)*)\)/gs;
-  let pipeMatch;
+  // Find all .pipe( occurrences and extract their balanced content
+  const pipePattern = /\.pipe\s*\(/g;
+  let match;
 
-  while ((pipeMatch = pipeRegex.exec(code)) !== null) {
-    const pipeContent = pipeMatch[1];
+  while ((match = pipePattern.exec(code)) !== null) {
+    const pipeContent = extractBalancedContent(code, match.index + match[0].length - 1);
+
+    // Now search for operators in the pipe content
     Object.keys(operatorDatabase).forEach(op => {
+      // Match operator name followed by ( with possible whitespace
       const opRegex = new RegExp(`\\b${op}\\s*\\(`, 'g');
       if (opRegex.test(pipeContent) && !operators.includes(op)) {
         operators.push(op);

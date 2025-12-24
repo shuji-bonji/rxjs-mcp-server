@@ -1,162 +1,23 @@
 import { z } from 'zod';
-// RxJS 7.2+ modern import style - all from 'rxjs' except special modules
-import {
-  // Observable & Subject classes
-  Observable,
-  Subject,
-  BehaviorSubject,
-  ReplaySubject,
-  AsyncSubject,
-  connectable,
-
-  // Creation Functions - basic
-  of,
-  from,
-  fromEvent,
-  interval,
-  timer,
-
-  // Creation Functions - loop
-  range,
-  generate,
-
-  // Creation Functions - combination
-  concat,
-  merge,
-  combineLatest,
-  zip,
-  forkJoin,
-
-  // Creation Functions - selection
-  race,
-  partition,
-
-  // Creation Functions - conditional
-  iif,
-  defer,
-
-  // Creation Functions - control
-  scheduled,
-
-  // Other creation utilities
-  throwError,
-  EMPTY,
-  NEVER,
-  firstValueFrom,
-  lastValueFrom,
-
-  // Transformation operators
-  map,
-  scan,
-  mergeScan,
-  reduce,
-  pairwise,
-  groupBy,
-  mergeMap,
-  switchMap,
-  concatMap,
-  exhaustMap,
-  expand,
-  buffer,
-  bufferTime,
-  bufferCount,
-  bufferWhen,
-  bufferToggle,
-  windowTime,
-  window as windowOp,
-  windowCount,
-  windowToggle,
-  windowWhen,
-
-  // Filtering operators
-  filter,
-  take,
-  takeLast,
-  takeWhile,
-  skip,
-  skipLast,
-  skipWhile,
-  skipUntil,
-  first,
-  last,
-  elementAt,
-  find,
-  findIndex,
-  debounceTime,
-  throttleTime,
-  auditTime,
-  audit,
-  sampleTime,
-  sample,
-  ignoreElements,
-  distinct,
-  distinctUntilChanged,
-  distinctUntilKeyChanged,
-
-  // Combination operators (pipeable)
-  concatWith,
-  mergeWith,
-  combineLatestWith,
-  zipWith,
-  raceWith,
-  withLatestFrom,
-  mergeAll,
-  concatAll,
-  switchAll,
-  exhaustAll,
-  combineLatestAll,
-  zipAll,
-
-  // Utility operators
-  tap,
-  delay,
-  delayWhen,
-  timeout,
-  takeUntil,
-  finalize,
-  repeat,
-  retry,
-  startWith,
-  endWith,
-  toArray,
-  materialize,
-  dematerialize,
-  observeOn,
-  subscribeOn,
-  timestamp,
-
-  // Conditional operators
-  defaultIfEmpty,
-  every,
-  isEmpty,
-
-  // Error handling operators
-  catchError,
-  retryWhen,
-
-  // Multicasting operators
-  share,
-  shareReplay,
-
-  // Other useful operators
-  pluck,
-  mapTo,
-  switchMapTo,
-  mergeMapTo,
-  concatMapTo,
-  count,
-  max,
-  min,
-  single,
-  throwIfEmpty,
-  connect,
-  refCount,
-} from 'rxjs';
-
-// Special module imports (require separate paths)
-import { ajax } from 'rxjs/ajax';
-
+import { Worker } from 'worker_threads';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import { ToolImplementation, ToolResponse, StreamExecutionResult } from '../types.js';
+
+// Get the directory of this file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Determine the worker path - handle both src (vitest) and dist (production) scenarios
+function getWorkerPath(): string {
+  // Check if we're in src directory (vitest) or dist directory (production)
+  if (__dirname.includes('/src/')) {
+    // Running from src - look for compiled worker in dist
+    return path.resolve(__dirname, '../../dist/tools/execute-stream-worker.js');
+  }
+  // Running from dist
+  return path.join(__dirname, 'execute-stream-worker.js');
+}
 
 // Input schema
 const inputSchema = z.object({
@@ -167,262 +28,151 @@ const inputSchema = z.object({
   captureMemory: z.boolean().optional().default(false).describe('Whether to capture memory usage'),
 });
 
-// Helper function to safely evaluate RxJS code
-async function executeRxJSCode(code: string, takeCount: number, timeoutMs: number): Promise<StreamExecutionResult> {
-  const result: StreamExecutionResult = {
-    values: [],
-    errors: [],
-    completed: false,
-    timeline: [],
-    executionTime: 0,
+interface WorkerResult {
+  values: any[];
+  errors: string[];
+  completed: boolean;
+  hasError: boolean;
+  timeline: Array<{
+    time: number;
+    type: 'next' | 'error' | 'complete';
+    value?: any;
+  }>;
+  executionTime: number;
+  memoryUsage: {
+    before: number;
+    after: number;
+    peak: number;
   };
+}
 
-  const startTime = Date.now();
-  const startMemory = process.memoryUsage().heapUsed;
+/**
+ * Execute RxJS code in an isolated Worker thread
+ * This prevents any side effects from affecting the main process
+ */
+async function executeRxJSCodeInWorker(
+  code: string,
+  takeCount: number,
+  timeoutMs: number
+): Promise<StreamExecutionResult> {
+  return new Promise((resolve) => {
+    const workerPath = getWorkerPath();
 
-  try {
-    // Create a safe execution context with RxJS imports
-    const context = {
-      // Observable and Subject classes
-      Observable,
-      Subject,
-      BehaviorSubject,
-      ReplaySubject,
-      AsyncSubject,
-
-      // Creation Functions - basic
-      of,
-      from,
-      fromEvent,
-      interval,
-      timer,
-
-      // Creation Functions - loop
-      range,
-      generate,
-
-      // Creation Functions - http
-      ajax,
-
-      // Creation Functions - combination
-      concat,
-      merge,
-      combineLatest,
-      zip,
-      forkJoin,
-
-      // Creation Functions - selection
-      race,
-      partition,
-
-      // Creation Functions - conditional
-      iif,
-      defer,
-
-      // Creation Functions - control
-      scheduled,
-
-      // Other creation utilities
-      throwError,
-      EMPTY,
-      NEVER,
-      firstValueFrom,
-      lastValueFrom,
-
-      // Transformation operators
-      map,
-      scan,
-      mergeScan,
-      reduce,
-      pairwise,
-      groupBy,
-      mergeMap,
-      switchMap,
-      concatMap,
-      exhaustMap,
-      expand,
-      buffer,
-      bufferTime,
-      bufferCount,
-      bufferWhen,
-      bufferToggle,
-      windowTime,
-      window: windowOp,
-      windowCount,
-      windowToggle,
-      windowWhen,
-
-      // Filtering operators
-      filter,
-      take,
-      takeLast,
-      takeWhile,
-      skip,
-      skipLast,
-      skipWhile,
-      skipUntil,
-      first,
-      last,
-      elementAt,
-      find,
-      findIndex,
-      debounceTime,
-      throttleTime,
-      auditTime,
-      audit,
-      sampleTime,
-      sample,
-      ignoreElements,
-      distinct,
-      distinctUntilChanged,
-      distinctUntilKeyChanged,
-
-      // Combination operators (pipeable)
-      concatWith,
-      mergeWith,
-      combineLatestWith,
-      zipWith,
-      raceWith,
-      withLatestFrom,
-      mergeAll,
-      concatAll,
-      switchAll,
-      exhaustAll,
-      combineLatestAll,
-      zipAll,
-
-      // Utility operators
-      tap,
-      delay,
-      delayWhen,
-      timeout,
-      takeUntil,
-      finalize,
-      repeat,
-      retry,
-      startWith,
-      endWith,
-      toArray,
-      materialize,
-      dematerialize,
-      observeOn,
-      subscribeOn,
-      timestamp,
-
-      // Conditional operators
-      defaultIfEmpty,
-      every,
-      isEmpty,
-
-      // Error handling operators
-      catchError,
-      retryWhen,
-
-      // Multicasting operators
-      share,
-      shareReplay,
-
-      // Other useful operators
-      pluck,
-      mapTo,
-      switchMapTo,
-      mergeMapTo,
-      concatMapTo,
-      count,
-      max,
-      min,
-      single,
-      throwIfEmpty,
-      connect,
-      connectable,
-      refCount,
-    };
-
-    // Create function with context
-    const func = new Function(...Object.keys(context), `
-      ${code}
-    `);
-
-    // Execute the function with context
-    const observable$ = func(...Object.values(context));
-
-    if (!(observable$ instanceof Observable)) {
-      throw new Error('Code must return an Observable');
-    }
-
-    // Execute the observable with limits
-    await new Promise<void>((resolve, reject) => {
-      const timeoutHandle = setTimeout(() => {
-        reject(new Error(`Stream execution timeout after ${timeoutMs}ms`));
-      }, timeoutMs);
-
-      const subscription = observable$
-        .pipe(
-          take(takeCount),
-          tap(value => {
-            const time = Date.now() - startTime;
-            result.values.push(value);
-            result.timeline.push({ time, type: 'next', value });
-          }),
-          catchError(error => {
-            const time = Date.now() - startTime;
-            result.errors.push(error.message || error);
-            result.timeline.push({ time, type: 'error', value: error.message });
-            return EMPTY;
-          }),
-          finalize(() => {
-            clearTimeout(timeoutHandle);
-            result.completed = true;
-            const time = Date.now() - startTime;
-            result.timeline.push({ time, type: 'complete' });
-          })
-        )
-        .subscribe({
-          complete: () => resolve(),
-          error: (err) => {
-            clearTimeout(timeoutHandle);
-            reject(err);
-          }
-        });
-
-      // Clean up on timeout
-      setTimeout(() => {
-        subscription.unsubscribe();
-      }, timeoutMs);
+    const worker = new Worker(workerPath, {
+      workerData: {
+        code,
+        takeCount,
+        timeoutMs,
+      },
     });
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    result.errors.push(errorMessage);
-  }
+    // Set a hard timeout that will kill the worker
+    const hardTimeout = setTimeout(() => {
+      worker.terminate().then(() => {
+        resolve({
+          values: [],
+          errors: [`Execution forcefully terminated after ${timeoutMs}ms timeout`],
+          completed: false,
+          timeline: [],
+          executionTime: timeoutMs,
+          memoryUsage: {
+            before: 0,
+            after: 0,
+            peak: 0,
+          },
+        });
+      });
+    }, timeoutMs + 1000); // Give 1 extra second for graceful completion
 
-  result.executionTime = Date.now() - startTime;
-  
-  if (result.timeline.length === 0 && result.values.length === 0 && result.errors.length === 0) {
-    result.errors.push('No emissions from the stream');
-  }
+    worker.on('message', (message: { success: boolean; result?: WorkerResult; error?: string }) => {
+      clearTimeout(hardTimeout);
 
-  // Capture memory usage if requested
-  const endMemory = process.memoryUsage().heapUsed;
-  result.memoryUsage = {
-    before: startMemory,
-    after: endMemory,
-    peak: Math.max(startMemory, endMemory),
-  };
+      if (message.success && message.result) {
+        resolve({
+          values: message.result.values,
+          errors: message.result.errors,
+          completed: message.result.completed && !message.result.hasError,
+          timeline: message.result.timeline,
+          executionTime: message.result.executionTime,
+          memoryUsage: message.result.memoryUsage,
+        });
+      } else {
+        resolve({
+          values: [],
+          errors: [message.error || 'Unknown worker error'],
+          completed: false,
+          timeline: [],
+          executionTime: 0,
+          memoryUsage: {
+            before: 0,
+            after: 0,
+            peak: 0,
+          },
+        });
+      }
 
-  return result;
+      worker.terminate();
+    });
+
+    worker.on('error', (error) => {
+      clearTimeout(hardTimeout);
+      resolve({
+        values: [],
+        errors: [error.message || 'Worker execution error'],
+        completed: false,
+        timeline: [],
+        executionTime: 0,
+        memoryUsage: {
+          before: 0,
+          after: 0,
+          peak: 0,
+        },
+      });
+      worker.terminate();
+    });
+
+    worker.on('exit', (code) => {
+      clearTimeout(hardTimeout);
+      if (code !== 0) {
+        resolve({
+          values: [],
+          errors: [`Worker stopped with exit code ${code}`],
+          completed: false,
+          timeline: [],
+          executionTime: 0,
+          memoryUsage: {
+            before: 0,
+            after: 0,
+            peak: 0,
+          },
+        });
+      }
+    });
+  });
 }
 
 // Format result for display
 function formatResult(result: StreamExecutionResult, captureTimeline: boolean, captureMemory: boolean): string {
   const parts: string[] = [];
+  const hasErrors = result.errors.length > 0;
 
   // Execution summary
   parts.push('## Stream Execution Result\n');
-  parts.push(`**Status:** ${result.completed ? '✅ Completed' : '⚠️ Not completed'}`);
+
+  // Status now correctly shows error state
+  if (hasErrors && !result.completed) {
+    parts.push('**Status:** ❌ Error');
+  } else if (hasErrors && result.completed) {
+    parts.push('**Status:** ⚠️ Completed with errors');
+  } else if (result.completed) {
+    parts.push('**Status:** ✅ Completed');
+  } else {
+    parts.push('**Status:** ⚠️ Not completed');
+  }
+
   parts.push(`**Execution Time:** ${result.executionTime}ms`);
   parts.push(`**Values Emitted:** ${result.values.length}`);
-  if (result.errors.length > 0) {
+  if (hasErrors) {
     parts.push(`**Errors:** ${result.errors.length}`);
   }
   parts.push('');
@@ -437,7 +187,7 @@ function formatResult(result: StreamExecutionResult, captureTimeline: boolean, c
   }
 
   // Errors
-  if (result.errors.length > 0) {
+  if (hasErrors) {
     parts.push('### Errors');
     result.errors.forEach((error, i) => {
       parts.push(`${i + 1}. ${error}`);
@@ -476,7 +226,7 @@ function formatResult(result: StreamExecutionResult, captureTimeline: boolean, c
 export const executeStreamTool: ToolImplementation = {
   definition: {
     name: 'execute_stream',
-    description: 'Execute RxJS code and capture the stream emissions, timeline, and performance metrics',
+    description: 'Execute RxJS code in an isolated environment and capture the stream emissions, timeline, and performance metrics. Code runs in a separate worker thread for security.',
     inputSchema: inputSchema,
     annotations: {
       readOnlyHint: true,
@@ -485,16 +235,16 @@ export const executeStreamTool: ToolImplementation = {
   },
   handler: async (args: unknown): Promise<ToolResponse> => {
     const input = inputSchema.parse(args);
-    
+
     try {
-      const result = await executeRxJSCode(
+      const result = await executeRxJSCodeInWorker(
         input.code,
         input.takeCount,
         input.timeout
       );
-      
+
       const formatted = formatResult(result, input.captureTimeline, input.captureMemory);
-      
+
       return {
         content: [{
           type: 'text',
