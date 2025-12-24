@@ -1,5 +1,7 @@
 # RxJS MCP Server
 
+> ⚠️ This is an unofficial community project, not affiliated with RxJS team.
+
 Execute, debug, and visualize RxJS streams directly from AI assistants like Claude.
 
 ## Features
