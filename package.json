@@ -4,16 +4,28 @@
   "description": "RxJS MCP Server - Execute, debug, and visualize RxJS streams for AI assistants",
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "rxjs",
     "reactive",
     "observable",
     "stream",
-    "angular"
+    "angular",
+    "claude",
+    "ai-assistant",
+    "debugging",
+    "marble-diagram"
   ],
   "author": "Shuji Bonji",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "bin": {
     "rxjs-mcp": "./dist/index.js"
   },

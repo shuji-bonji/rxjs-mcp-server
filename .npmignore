@@ -1,0 +1,23 @@
+# Source files
+src/
+
+# Test files
+*.test.ts
+*.test.js
+test-mcp-server.mjs
+vitest.config.ts
+coverage/
+
+# Development config
+tsconfig.json
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Misc
+*.log
+*.tgz
+.DS_Store

@@ -215,6 +215,15 @@ Claude: I'll show you the search typeahead pattern.
 [Full implementation with explanation]
 ```
 
+## Security
+
+The `execute_stream` tool runs user-provided code in an **isolated Worker thread** to prevent:
+- Main process pollution
+- Resource leaks from infinite loops or timers
+- Access to sensitive Node.js APIs (process, fs, etc.)
+
+Execution is forcefully terminated if it exceeds the configured timeout.
+
 ## Development
 
 ```bash
@@ -228,11 +237,13 @@ npm install
 # Build
 npm run build
 
+# Run tests
+npm test              # Unit tests (vitest)
+npm run test:mcp      # MCP integration test
+npm run test:inspector # MCP Inspector (GUI)
+
 # Run in development
 npm run dev
-
-# Test with MCP Inspector
-npm test
 ```
 
 ## Integration with Other MCP Servers
