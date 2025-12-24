@@ -2,7 +2,14 @@
   "name": "@shuji-bonji/rxjs-mcp",
   "version": "0.1.0",
   "description": "RxJS MCP Server - Execute, debug, and visualize RxJS streams for AI assistants",
-  "keywords": ["mcp", "rxjs", "reactive", "observable", "stream", "angular"],
+  "keywords": [
+    "mcp",
+    "rxjs",
+    "reactive",
+    "observable",
+    "stream",
+    "angular"
+  ],
   "author": "Shuji Bonji",
   "license": "MIT",
   "type": "module",
@@ -19,7 +26,10 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "test": "npx @modelcontextprotocol/inspector dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:inspector": "npx @modelcontextprotocol/inspector dist/index.js",
     "clean": "rm -rf dist",
     "prepare": "npm run build"
   },
@@ -29,9 +39,10 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
+    "@types/node": "^20.19.27",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.16"
   },
   "engines": {
     "node": ">=18.0.0"
