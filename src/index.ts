@@ -2,6 +2,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { executeStreamTool } from './tools/execute-stream.js';
 import { generateMarbleTool } from './tools/marble-diagram.js';
 import { analyzeOperatorsTool } from './tools/analyze-operators.js';
@@ -46,7 +47,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: tools.map(tool => ({
       name: tool.name,
       description: tool.description,
-      inputSchema: tool.inputSchema as any,
+      inputSchema: zodToJsonSchema(tool.inputSchema, { target: 'openApi3' }),
       outputSchema: tool.outputSchema,
       annotations: tool.annotations,
     })),
