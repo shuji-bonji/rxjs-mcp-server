@@ -1,6 +1,6 @@
 {
   "name": "@shuji-bonji/rxjs-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "RxJS MCP Server - Execute, debug, and visualize RxJS streams for AI assistants",
   "keywords": [
     "mcp",
