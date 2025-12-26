@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ToolImplementation, ToolResponse, MemoryLeakResult } from '../types.js';
+import { getCleanupExample } from '../data/cleanup-examples.js';
 
 // Input schema
 const inputSchema = z.object({
@@ -14,13 +15,13 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
     leakSources: [],
     recommendations: [],
   };
-  
+
   // Check for unsubscribed subscriptions
   const subscribeRegex = /\.subscribe\s*\(/g;
   const unsubscribeRegex = /\.unsubscribe\s*\(\)/g;
   const subscribeMatches = code.match(subscribeRegex) || [];
   const unsubscribeMatches = code.match(unsubscribeRegex) || [];
-  
+
   if (subscribeMatches.length > unsubscribeMatches.length) {
     result.hasLeak = true;
     result.leakSources.push({
@@ -30,13 +31,13 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
       suggestion: 'Store subscriptions and unsubscribe in cleanup (ngOnDestroy, useEffect cleanup, etc.)',
     });
   }
-  
+
   // Check for missing takeUntil
   const hasTakeUntil = /takeUntil\s*\(/.test(code);
   const hasTakeWhile = /takeWhile\s*\(/.test(code);
   const hasTake = /take\s*\(/.test(code);
   const hasFirst = /first\s*\(/.test(code);
-  
+
   if (subscribeMatches.length > 0 && !hasTakeUntil && !hasTakeWhile && !hasTake && !hasFirst) {
     result.hasLeak = true;
     result.leakSources.push({
@@ -46,11 +47,11 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
       suggestion: 'Use takeUntil with a destroy$ subject for automatic cleanup',
     });
   }
-  
+
   // Check for interval/timer without limits
   const hasInterval = /interval\s*\(/.test(code);
   const hasTimer = /timer\s*\([^,)]+,[^)]+\)/.test(code); // Timer with period
-  
+
   if ((hasInterval || hasTimer) && !hasTake && !hasTakeUntil && !hasTakeWhile) {
     result.hasLeak = true;
     result.leakSources.push({
@@ -60,13 +61,13 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
       suggestion: 'Add take() or takeUntil() to limit emissions',
     });
   }
-  
+
   // Check for subjects not being completed
   const subjectRegex = /new\s+(Subject|BehaviorSubject|ReplaySubject|AsyncSubject)/g;
   const subjectMatches = code.match(subjectRegex) || [];
   const completeRegex = /\.complete\s*\(\)/g;
   const completeMatches = code.match(completeRegex) || [];
-  
+
   if (subjectMatches.length > completeMatches.length) {
     result.hasLeak = true;
     result.leakSources.push({
@@ -76,11 +77,11 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
       suggestion: 'Call complete() on Subjects in cleanup to release resources',
     });
   }
-  
+
   // Check for shareReplay without refCount
   const hasShareReplay = /shareReplay\s*\(/.test(code);
   const hasRefCount = /refCount\s*:?\s*true/.test(code);
-  
+
   if (hasShareReplay && !hasRefCount) {
     result.leakSources.push({
       type: 'operator',
@@ -89,11 +90,11 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
       suggestion: 'Consider using shareReplay({ bufferSize: 1, refCount: true })',
     });
   }
-  
+
   // Check for event listeners without removal
   const fromEventRegex = /fromEvent\s*\(/g;
   const fromEventMatches = code.match(fromEventRegex) || [];
-  
+
   if (fromEventMatches.length > 0 && !hasTakeUntil) {
     result.hasLeak = true;
     result.leakSources.push({
@@ -103,7 +104,7 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
       suggestion: 'Use takeUntil() to remove event listeners on cleanup',
     });
   }
-  
+
   // Framework-specific checks
   if (lifecycle === 'angular') {
     // Check for async pipe usage (good practice)
@@ -111,7 +112,7 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
     if (!hasAsyncPipe && subscribeMatches.length > 0) {
       result.recommendations.push('Consider using Angular\'s async pipe to auto-manage subscriptions');
     }
-    
+
     // Check for ngOnDestroy
     const hasNgOnDestroy = /ngOnDestroy\s*\(/.test(code);
     if (!hasNgOnDestroy && subscribeMatches.length > 0) {
@@ -135,106 +136,23 @@ function analyzeMemoryLeaks(code: string, lifecycle: string): MemoryLeakResult {
   } else if (lifecycle === 'vue') {
     // Check for beforeDestroy/beforeUnmount
     const hasBeforeDestroy = /beforeDestroy|beforeUnmount|onBeforeUnmount/.test(code);
-    
+
     if (!hasBeforeDestroy && subscribeMatches.length > 0) {
       result.recommendations.push('Use beforeUnmount/onBeforeUnmount for cleanup in Vue 3');
     }
   }
-  
+
   // General recommendations
   if (result.hasLeak) {
     result.recommendations.push('Use a subscription management pattern (e.g., SubSink, subscription array)');
     result.recommendations.push('Consider using operators that auto-complete (first, take, takeUntil)');
-    
+
     if (subscribeMatches.length > 3) {
       result.recommendations.push('With many subscriptions, consider combining streams with merge/combineLatest');
     }
   }
-  
+
   return result;
-}
-
-// Generate code example for proper cleanup
-function generateCleanupExample(lifecycle: string): string {
-  const examples: Record<string, string> = {
-    angular: `
-// Angular Component with proper cleanup
-export class MyComponent implements OnDestroy {
-  private destroy$ = new Subject<void>();
-  
-  ngOnInit() {
-    // Method 1: takeUntil pattern
-    this.myService.getData()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => console.log(data));
-    
-    // Method 2: Async pipe in template
-    this.data$ = this.myService.getData();
-    // Template: {{ data$ | async }}
-  }
-  
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-}`,
-    react: `
-// React Hook with proper cleanup
-function MyComponent() {
-  useEffect(() => {
-    const subscription = dataStream$
-      .pipe(/* operators */)
-      .subscribe(data => setData(data));
-    
-    // Cleanup function
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [/* dependencies */]);
-}`,
-    vue: `
-// Vue 3 Composition API with proper cleanup
-import { onBeforeUnmount } from 'vue';
-
-export default {
-  setup() {
-    const destroy$ = new Subject();
-    
-    // Subscribe with takeUntil
-    dataStream$
-      .pipe(takeUntil(destroy$))
-      .subscribe(data => state.data = data);
-    
-    onBeforeUnmount(() => {
-      destroy$.next();
-      destroy$.complete();
-    });
-  }
-}`,
-    none: `
-// Generic cleanup pattern
-class StreamManager {
-  private subscriptions = new Subscription();
-  
-  init() {
-    // Add subscriptions to composite
-    this.subscriptions.add(
-      stream1$.subscribe(/* ... */)
-    );
-    
-    this.subscriptions.add(
-      stream2$.subscribe(/* ... */)
-    );
-  }
-  
-  cleanup() {
-    // Unsubscribe all at once
-    this.subscriptions.unsubscribe();
-  }
-}`,
-  };
-  
-  return examples[lifecycle] || examples.none;
 }
 
 // Tool implementation
@@ -250,17 +168,17 @@ export const detectMemoryLeakTool: ToolImplementation = {
   },
   handler: async (args: unknown): Promise<ToolResponse> => {
     const input = inputSchema.parse(args);
-    
+
     try {
       const result = analyzeMemoryLeaks(input.code, input.componentLifecycle);
-      
+
       const parts: string[] = [
         '## Memory Leak Analysis',
         '',
         `**Status:** ${result.hasLeak ? '⚠️ Potential leaks detected' : '✅ No obvious leaks detected'}`,
         '',
       ];
-      
+
       if (result.leakSources.length > 0) {
         parts.push('### Detected Issues');
         result.leakSources.forEach((leak, i) => {
@@ -271,7 +189,7 @@ export const detectMemoryLeakTool: ToolImplementation = {
           parts.push('');
         });
       }
-      
+
       if (result.recommendations.length > 0) {
         parts.push('### Recommendations');
         result.recommendations.forEach(rec => {
@@ -279,13 +197,13 @@ export const detectMemoryLeakTool: ToolImplementation = {
         });
         parts.push('');
       }
-      
+
       // Add cleanup example
       parts.push('### Proper Cleanup Pattern');
       parts.push('```typescript');
-      parts.push(generateCleanupExample(input.componentLifecycle).trim());
+      parts.push(getCleanupExample(input.componentLifecycle).trim());
       parts.push('```');
-      
+
       // Add best practices
       parts.push('', '### Best Practices');
       parts.push('1. **Always unsubscribe** from infinite streams (interval, fromEvent, Subject)');
@@ -293,7 +211,7 @@ export const detectMemoryLeakTool: ToolImplementation = {
       parts.push('3. **Complete Subjects** in cleanup to free resources');
       parts.push('4. **Prefer async pipe** (Angular) or hooks (React) for auto-cleanup');
       parts.push('5. **Use shareReplay carefully** with refCount: true for shared streams');
-      
+
       return {
         content: [{
           type: 'text',

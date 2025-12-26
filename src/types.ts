@@ -124,3 +124,51 @@ export interface MarbleDiagramResult {
     value?: any;
   }>;
 }
+
+// ============================================
+// Worker Thread Types
+// ============================================
+
+/**
+ * Timeline event in stream execution
+ */
+export interface TimelineEvent {
+  time: number;
+  type: 'next' | 'error' | 'complete';
+  value?: unknown;
+}
+
+/**
+ * Input data for Worker thread
+ */
+export interface WorkerInput {
+  code: string;
+  takeCount: number;
+  timeoutMs: number;
+}
+
+/**
+ * Result from Worker thread execution
+ */
+export interface WorkerResult {
+  values: unknown[];
+  errors: string[];
+  completed: boolean;
+  hasError: boolean;
+  timeline: TimelineEvent[];
+  executionTime: number;
+  memoryUsage: {
+    before: number;
+    after: number;
+    peak: number;
+  };
+}
+
+/**
+ * Message sent from Worker to main thread
+ */
+export interface WorkerMessage {
+  success: boolean;
+  result?: WorkerResult;
+  error?: string;
+}

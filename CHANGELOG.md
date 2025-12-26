@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2025-12-27
+
+### Changed
+- Refactored codebase for better maintainability
+  - Separated data (patterns, operators, RxJS context) from logic
+  - Centralized RxJS execution context in `rxjs-context.ts`
+  - Moved shared types to `types.ts`
+  - Reduced code duplication in worker files
+
+### Added
+- `src/data/` directory for data-only modules
+  - `patterns.ts` - RxJS pattern templates
+  - `operators.ts` - Operator definitions
+  - `creation-functions.ts` - Creation function definitions
+  - `cleanup-examples.ts` - Framework-specific cleanup examples
+  - `rxjs-context.ts` - RxJS execution context for Worker
+
 ## [0.1.2] - 2025-12-26
 
 ### Fixed

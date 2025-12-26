@@ -2,15 +2,21 @@ import { z } from 'zod';
 import { Worker } from 'worker_threads';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { ToolImplementation, ToolResponse, StreamExecutionResult } from '../types.js';
+import {
+  ToolImplementation,
+  ToolResponse,
+  StreamExecutionResult,
+  WorkerMessage,
+} from '../types.js';
 
 // Get the directory of this file
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Determine the worker path - handle both src (vitest) and dist (production) scenarios
+/**
+ * Determine the worker path - handle both src (vitest) and dist (production) scenarios
+ */
 function getWorkerPath(): string {
-  // Check if we're in src directory (vitest) or dist directory (production)
   if (__dirname.includes('/src/')) {
     // Running from src - look for compiled worker in dist
     return path.resolve(__dirname, '../../dist/tools/execute-stream-worker.js');
@@ -28,21 +34,17 @@ const inputSchema = z.object({
   captureMemory: z.boolean().optional().default(false).describe('Whether to capture memory usage'),
 });
 
-interface WorkerResult {
-  values: any[];
-  errors: string[];
-  completed: boolean;
-  hasError: boolean;
-  timeline: Array<{
-    time: number;
-    type: 'next' | 'error' | 'complete';
-    value?: any;
-  }>;
-  executionTime: number;
-  memoryUsage: {
-    before: number;
-    after: number;
-    peak: number;
+/**
+ * Create an empty/error result
+ */
+function createErrorResult(error: string, executionTime = 0): StreamExecutionResult {
+  return {
+    values: [],
+    errors: [error],
+    completed: false,
+    timeline: [],
+    executionTime,
+    memoryUsage: { before: 0, after: 0, peak: 0 },
   };
 }
 
@@ -59,56 +61,34 @@ async function executeRxJSCodeInWorker(
     const workerPath = getWorkerPath();
 
     const worker = new Worker(workerPath, {
-      workerData: {
-        code,
-        takeCount,
-        timeoutMs,
-      },
+      workerData: { code, takeCount, timeoutMs },
     });
 
     // Set a hard timeout that will kill the worker
     const hardTimeout = setTimeout(() => {
       worker.terminate().then(() => {
-        resolve({
-          values: [],
-          errors: [`Execution forcefully terminated after ${timeoutMs}ms timeout`],
-          completed: false,
-          timeline: [],
-          executionTime: timeoutMs,
-          memoryUsage: {
-            before: 0,
-            after: 0,
-            peak: 0,
-          },
-        });
+        resolve(createErrorResult(
+          `Execution forcefully terminated after ${timeoutMs}ms timeout`,
+          timeoutMs
+        ));
       });
     }, timeoutMs + 1000); // Give 1 extra second for graceful completion
 
-    worker.on('message', (message: { success: boolean; result?: WorkerResult; error?: string }) => {
+    worker.on('message', (message: WorkerMessage) => {
       clearTimeout(hardTimeout);
 
       if (message.success && message.result) {
+        const result = message.result;
         resolve({
-          values: message.result.values,
-          errors: message.result.errors,
-          completed: message.result.completed && !message.result.hasError,
-          timeline: message.result.timeline,
-          executionTime: message.result.executionTime,
-          memoryUsage: message.result.memoryUsage,
+          values: result.values,
+          errors: result.errors,
+          completed: result.completed && !result.hasError,
+          timeline: result.timeline,
+          executionTime: result.executionTime,
+          memoryUsage: result.memoryUsage,
         });
       } else {
-        resolve({
-          values: [],
-          errors: [message.error || 'Unknown worker error'],
-          completed: false,
-          timeline: [],
-          executionTime: 0,
-          memoryUsage: {
-            before: 0,
-            after: 0,
-            peak: 0,
-          },
-        });
+        resolve(createErrorResult(message.error || 'Unknown worker error'));
       }
 
       worker.terminate();
@@ -116,50 +96,34 @@ async function executeRxJSCodeInWorker(
 
     worker.on('error', (error) => {
       clearTimeout(hardTimeout);
-      resolve({
-        values: [],
-        errors: [error.message || 'Worker execution error'],
-        completed: false,
-        timeline: [],
-        executionTime: 0,
-        memoryUsage: {
-          before: 0,
-          after: 0,
-          peak: 0,
-        },
-      });
+      resolve(createErrorResult(error.message || 'Worker execution error'));
       worker.terminate();
     });
 
     worker.on('exit', (code) => {
       clearTimeout(hardTimeout);
       if (code !== 0) {
-        resolve({
-          values: [],
-          errors: [`Worker stopped with exit code ${code}`],
-          completed: false,
-          timeline: [],
-          executionTime: 0,
-          memoryUsage: {
-            before: 0,
-            after: 0,
-            peak: 0,
-          },
-        });
+        resolve(createErrorResult(`Worker stopped with exit code ${code}`));
       }
     });
   });
 }
 
-// Format result for display
-function formatResult(result: StreamExecutionResult, captureTimeline: boolean, captureMemory: boolean): string {
+/**
+ * Format execution result for display
+ */
+function formatResult(
+  result: StreamExecutionResult,
+  captureTimeline: boolean,
+  captureMemory: boolean
+): string {
   const parts: string[] = [];
   const hasErrors = result.errors.length > 0;
 
   // Execution summary
   parts.push('## Stream Execution Result\n');
 
-  // Status now correctly shows error state
+  // Status
   if (hasErrors && !result.completed) {
     parts.push('**Status:** ❌ Error');
   } else if (hasErrors && result.completed) {
@@ -246,10 +210,7 @@ export const executeStreamTool: ToolImplementation = {
       const formatted = formatResult(result, input.captureTimeline, input.captureMemory);
 
       return {
-        content: [{
-          type: 'text',
-          text: formatted,
-        }],
+        content: [{ type: 'text', text: formatted }],
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
