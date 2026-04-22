@@ -88,11 +88,22 @@ git push && git push --tags
 
 ## トラブルシューティング
 
+### `404 Not Found - PUT https://registry.npmjs.org/...` が出る（provenance 署名は成功）
+
+これは ほぼ確実に **npm CLI のバージョンが古いケース**です。
+
+- Trusted Publisher は **npm >= 11.5.1** を必要とします
+- Node 22 に同梱される npm は **10.x** なので、workflow で `npm publish` を直接呼ぶと OIDC 交換できず 401 相当になり、npm サーバは 404 で返してきます
+- `sigstore` への provenance 署名は npm 10.x でも通るため、ログ上は「Signed provenance statement... published to transparency log」まで成功してから PUT だけコケる、という紛らわしい症状になります
+
+**修正**: workflow で `npx -y npm@latest publish` を使う（release.yml 参照）。`npm install -g npm@latest` は Actions ランナー上で self-overwrite レースにより `MODULE_NOT_FOUND` で失敗するケースがあるため、`npx` でこのステップだけ新しい npm を呼び出すのが安全です。
+
 ### `ENEEDAUTH` / `403 Forbidden` が出る
 
 - npm 側の Trusted Publisher 設定で、**Repository** と **Workflow filename** が一字一句合っているか確認
 - `release.yml` の `permissions:` に `id-token: write` があるか確認
 - `actions/setup-node` に `registry-url: 'https://registry.npmjs.org'` が指定されているか確認
+- **Publishing access** が `Require 2FA and disallow tokens` になっていると OIDC token も弾かれるので、`Require 2FA or granular access token with bypass 2fa enabled` に変更
 
 ### Tag と package.json の version 不一致でコケる
 

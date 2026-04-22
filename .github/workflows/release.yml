@@ -68,24 +68,18 @@ jobs:
             exit 1
           fi
 
-      - name: Debug OIDC claims (temporary — remove after Trusted Publisher works)
-        run: |
-          set -euo pipefail
-          RESP=$(curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm")
-          IDTOKEN=$(echo "$RESP" | jq -r .value)
-          echo "=== OIDC JWT payload claims that npm verifies ==="
-          echo "$IDTOKEN" | cut -d. -f2 \
-            | { read -r P; echo "$P===" | base64 -d 2>/dev/null || echo "$P==" | base64 -d 2>/dev/null || echo "$P=" | base64 -d 2>/dev/null || echo "$P" | base64 -d; } \
-            | jq '{iss, aud, repository, repository_owner, workflow, workflow_ref, job_workflow_ref, ref, environment, event_name, sub}'
-
+      # Trusted Publisher requires npm >= 11.5.1, but Node 22 ships with npm 10.x.
+      # `npm install -g npm@latest` is known to fail intermittently on GitHub
+      # Actions runners (self-overwrite race → MODULE_NOT_FOUND), so invoke a
+      # fresh npm via npx only for this step. No NODE_AUTH_TOKEN is needed —
+      # authentication happens via OIDC token exchange with npm Trusted Publisher.
       - name: Publish to npm (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
-        run: npm publish --provenance --access public --dry-run
+        run: npx -y npm@latest publish --provenance --access public --dry-run
 
       - name: Publish to npm
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
-        run: npm publish --provenance --access public
+        run: npx -y npm@latest publish --provenance --access public
 
       - name: Extract changelog entry
         if: github.event_name == 'push'
