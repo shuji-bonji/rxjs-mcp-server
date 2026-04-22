@@ -1,5 +1,28 @@
 # RxJS MCP Server
 
+**[日本語版 README はこちら](README.ja.md)**
+
+<!-- Package meta -->
+
+[![npm version](https://img.shields.io/npm/v/@shuji-bonji/rxjs-mcp.svg?logo=npm)](https://www.npmjs.com/package/@shuji-bonji/rxjs-mcp)
+[![npm downloads](https://img.shields.io/npm/dw/@shuji-bonji/rxjs-mcp.svg?logo=npm)](https://www.npmjs.com/package/@shuji-bonji/rxjs-mcp)
+[![license](https://img.shields.io/npm/l/@shuji-bonji/rxjs-mcp.svg)](./LICENSE)
+[![Node.js](https://img.shields.io/node/v/@shuji-bonji/rxjs-mcp.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
+
+<!-- Build / trust -->
+
+[![CI](https://github.com/shuji-bonji/rxjs-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/shuji-bonji/rxjs-mcp-server/actions/workflows/ci.yml)
+[![Release](https://github.com/shuji-bonji/rxjs-mcp-server/actions/workflows/release.yml/badge.svg)](https://github.com/shuji-bonji/rxjs-mcp-server/actions/workflows/release.yml)
+[![Provenance](https://img.shields.io/badge/npm-provenance-blue?logo=npm)](https://docs.npmjs.com/generating-provenance-statements)
+[![Trusted Publisher](https://img.shields.io/badge/npm-Trusted%20Publisher-cb3837?logo=npm)](https://docs.npmjs.com/trusted-publishers)
+
+<!-- Tech stack -->
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![RxJS](https://img.shields.io/badge/RxJS-7.x-B7178C.svg?logo=reactivex&logoColor=white)](https://rxjs.dev)
+[![MCP](https://img.shields.io/badge/MCP-compatible-6C4BFF.svg)](https://modelcontextprotocol.io)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./README.md#contributing)
+
 > ⚠️ This is an unofficial community project, not affiliated with RxJS team.
 
 Execute, debug, and visualize RxJS streams directly from AI assistants like Claude.
@@ -7,30 +30,35 @@ Execute, debug, and visualize RxJS streams directly from AI assistants like Clau
 ## Features
 
 ### 🚀 Stream Execution
+
 - Execute RxJS code and capture emissions
-- Timeline visualization with timestamps  
+- Timeline visualization with timestamps
 - Memory usage tracking
 - Support for all major RxJS operators
 
 ### 📊 Marble Diagrams
+
 - Generate ASCII marble diagrams
 - Visualize stream behavior over time
 - Automatic pattern detection
 - Clear legend and explanations
 
 ### 🔍 Operator Analysis
+
 - Analyze operator chains for performance
 - Detect potential issues and bottlenecks
 - Suggest alternative approaches
 - Categorize operators by function
 
 ### 🛡️ Memory Leak Detection
+
 - Identify unsubscribed subscriptions
 - Detect missing cleanup patterns
 - Framework-specific recommendations (Angular, React, Vue)
 - Provide proper cleanup examples
 
 ### 💡 Pattern Suggestions
+
 - Get battle-tested RxJS patterns
 - Framework-specific implementations
 - Common use cases covered:
@@ -104,11 +132,27 @@ Add to `~/.cursor/mcp.json`:
 
 Execute RxJS code and capture stream emissions with timeline.
 
+The tool accepts either an expression that evaluates to an Observable, or a
+snippet ending in such an expression — `return` is optional.
+
 ```typescript
-// Example usage
+// ✅ Trailing expression (v0.2.0+): the last expression is returned implicitly
+interval(100).pipe(
+  take(5),
+  map((x) => x * 2),
+);
+
+// ✅ Declaration + trailing reference
 const stream$ = interval(100).pipe(
   take(5),
-  map(x => x * 2)
+  map((x) => x * 2),
+);
+stream$;
+
+// ✅ Explicit return (always works)
+return interval(100).pipe(
+  take(5),
+  map((x) => x * 2),
 );
 ```
 
@@ -121,8 +165,8 @@ Generate ASCII marble diagrams from event data.
 [
   { time: 0, value: 'A' },
   { time: 50, value: 'B' },
-  { time: 100, value: 'C' }
-]
+  { time: 100, value: 'C' },
+];
 
 // Output: A----B----C--|
 ```
@@ -134,11 +178,11 @@ Analyze RxJS operator chains for performance and best practices.
 ```typescript
 // Analyzes chains like:
 source$.pipe(
-  map(x => x * 2),
-  filter(x => x > 10),
-  switchMap(x => fetchData(x)),
-  retry(3)
-)
+  map((x) => x * 2),
+  filter((x) => x > 10),
+  switchMap((x) => fetchData(x)),
+  retry(3),
+);
 ```
 
 ### detect_memory_leak
@@ -158,6 +202,7 @@ Detect potential memory leaks and missing cleanup.
 Get production-ready patterns for common use cases.
 
 Available patterns:
+
 - `http-retry` - Resilient HTTP with retry
 - `search-typeahead` - Debounced search
 - `polling` - Smart polling with backoff
@@ -220,6 +265,7 @@ Claude: I'll show you the search typeahead pattern.
 ## Security
 
 The `execute_stream` tool runs user-provided code in an **isolated Worker thread** to prevent:
+
 - Main process pollution
 - Resource leaks from infinite loops or timers
 - Access to sensitive Node.js APIs (process, fs, etc.)
@@ -248,9 +294,17 @@ npm run test:inspector # MCP Inspector (GUI)
 npm run dev
 ```
 
+## Release
+
+Releases are automated via GitHub Actions and published to npm using
+**Trusted Publisher (OIDC)** — no static tokens are used, and every release
+carries an npm provenance attestation. See [RELEASING.md](./RELEASING.md)
+for the full workflow (and initial npm setup).
+
 ## Integration with Other MCP Servers
 
 RxJS MCP Server works great alongside:
+
 - **Angular MCP** - For Angular project scaffolding
 - **TypeScript MCP** - For type checking
 - **ESLint MCP** - For code quality

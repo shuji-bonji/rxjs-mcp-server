@@ -1,5 +1,26 @@
 # RxJS MCP Server
 
+<!-- Package meta -->
+
+[![npm version](https://img.shields.io/npm/v/@shuji-bonji/rxjs-mcp.svg?logo=npm)](https://www.npmjs.com/package/@shuji-bonji/rxjs-mcp)
+[![npm downloads](https://img.shields.io/npm/dw/@shuji-bonji/rxjs-mcp.svg?logo=npm)](https://www.npmjs.com/package/@shuji-bonji/rxjs-mcp)
+[![license](https://img.shields.io/npm/l/@shuji-bonji/rxjs-mcp.svg)](./LICENSE)
+[![Node.js](https://img.shields.io/node/v/@shuji-bonji/rxjs-mcp.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
+
+<!-- Build / trust -->
+
+[![CI](https://github.com/shuji-bonji/rxjs-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/shuji-bonji/rxjs-mcp-server/actions/workflows/ci.yml)
+[![Release](https://github.com/shuji-bonji/rxjs-mcp-server/actions/workflows/release.yml/badge.svg)](https://github.com/shuji-bonji/rxjs-mcp-server/actions/workflows/release.yml)
+[![Provenance](https://img.shields.io/badge/npm-provenance-blue?logo=npm)](https://docs.npmjs.com/generating-provenance-statements)
+[![Trusted Publisher](https://img.shields.io/badge/npm-Trusted%20Publisher-cb3837?logo=npm)](https://docs.npmjs.com/trusted-publishers)
+
+<!-- Tech stack -->
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![RxJS](https://img.shields.io/badge/RxJS-7.x-B7178C.svg?logo=reactivex&logoColor=white)](https://rxjs.dev)
+[![MCP](https://img.shields.io/badge/MCP-compatible-6C4BFF.svg)](https://modelcontextprotocol.io)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./README.ja.md#コントリビューション)
+
 > ⚠️ これは非公式のコミュニティプロジェクトです。RxJSチームとは関係ありません。
 
 ClaudeなどのAIアシスタントから直接RxJSストリームを実行、デバッグ、可視化できます。
@@ -104,12 +125,21 @@ npx @shuji-bonji/rxjs-mcp
 
 RxJSコードを実行し、タイムライン付きでストリームの発行をキャプチャします。
 
+Observable に評価される式、または末尾がそのような式で終わるスニペットを受け付けます。`return` の記述は任意です。
+
 ```typescript
-// 使用例
-const stream$ = interval(100).pipe(
+// ✅ 末尾の式で返す（v0.2.0 以降、自動的に return されます）
+interval(100).pipe(
   take(5),
   map(x => x * 2)
-);
+)
+
+// ✅ 宣言 + 末尾で参照
+const stream$ = interval(100).pipe(take(5), map(x => x * 2));
+stream$
+
+// ✅ 明示的な return（従来通り動作します）
+return interval(100).pipe(take(5), map(x => x * 2));
 ```
 
 ### generate_marble
@@ -236,6 +266,12 @@ npm run dev
 # MCP Inspectorでテスト
 npm test
 ```
+
+## リリース
+
+リリースは GitHub Actions で自動化されており、npm への publish は
+**Trusted Publisher (OIDC)** を使用します（静的トークン不要、
+provenance attestation 付き）。手順は [RELEASING.md](./RELEASING.md) を参照してください。
 
 ## 他のMCPサーバーとの連携
 

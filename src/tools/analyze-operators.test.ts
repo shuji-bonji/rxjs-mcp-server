@@ -392,4 +392,45 @@ describe('analyze_operators tool', () => {
       expect(result.content[0].text).toContain('utility');
     });
   });
+
+  describe('handler - chain order preservation', () => {
+    // These guard against a regression where operators were listed in
+    // operatorDatabase insertion order instead of source-code order.
+
+    it('should preserve map → filter → switchMap → retry order', async () => {
+      const result = await analyzeOperatorsTool.handler({
+        code: `source$.pipe(
+          map(x => x * 2),
+          filter(x => x > 10),
+          switchMap(x => fetchData(x)),
+          retry(3)
+        )`,
+      });
+
+      const text = result.content[0].text;
+      expect(text).toContain('map → filter → switchMap → retry');
+    });
+
+    it('should preserve debounceTime → distinctUntilChanged → switchMap order', async () => {
+      const result = await analyzeOperatorsTool.handler({
+        code: `input$.pipe(
+          debounceTime(300),
+          distinctUntilChanged(),
+          switchMap(q => search(q))
+        )`,
+      });
+
+      const text = result.content[0].text;
+      expect(text).toContain('debounceTime → distinctUntilChanged → switchMap');
+    });
+
+    it('should preserve order across multiple chained .pipe() calls', async () => {
+      const result = await analyzeOperatorsTool.handler({
+        code: 'source$.pipe(filter(x => x > 0)).pipe(map(x => x * 2)).pipe(take(5));',
+      });
+
+      const text = result.content[0].text;
+      expect(text).toContain('filter → map → take');
+    });
+  });
 });

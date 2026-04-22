@@ -48,23 +48,34 @@ function extractBalancedContent(code: string, startIndex: number): string {
   return '';
 }
 
-// Extract operators from code
+// Extract operators from code.
+// Operators are returned in the order they appear in the source code,
+// so the displayed "Chain" accurately reflects what the user wrote.
 function extractOperators(code: string): string[] {
-  const operators: string[] = [];
+  const occurrences: Array<{ name: string; index: number }> = [];
 
   // Find all .pipe( occurrences and extract their balanced content
   const pipePattern = /\.pipe\s*\(/g;
   let match;
 
   while ((match = pipePattern.exec(code)) !== null) {
-    const pipeContent = extractBalancedContent(code, match.index + match[0].length - 1);
+    const pipeOpenParenIndex = match.index + match[0].length - 1;
+    const pipeContent = extractBalancedContent(code, pipeOpenParenIndex);
+    // +1 to move past the `(` itself; this makes occurrence indices comparable
+    // against the outer `code` positions later on.
+    const pipeContentStart = pipeOpenParenIndex + 1;
 
     // Now search for operators in the pipe content
     Object.keys(operatorDatabase).forEach(op => {
-      // Match operator name followed by ( with possible whitespace
+      // Match operator name followed by ( with possible whitespace.
+      // Use all matches (not just .test) so we can record each position.
       const opRegex = new RegExp(`\\b${op}\\s*\\(`, 'g');
-      if (opRegex.test(pipeContent) && !operators.includes(op)) {
-        operators.push(op);
+      let opMatch: RegExpExecArray | null;
+      while ((opMatch = opRegex.exec(pipeContent)) !== null) {
+        occurrences.push({
+          name: op,
+          index: pipeContentStart + opMatch.index,
+        });
       }
     });
   }
@@ -72,10 +83,25 @@ function extractOperators(code: string): string[] {
   // Also check for operators used with method chaining (legacy style)
   Object.keys(operatorDatabase).forEach(op => {
     const standaloneRegex = new RegExp(`\\.${op}\\s*\\(`, 'g');
-    if (standaloneRegex.test(code) && !operators.includes(op)) {
-      operators.push(op);
+    let opMatch: RegExpExecArray | null;
+    while ((opMatch = standaloneRegex.exec(code)) !== null) {
+      occurrences.push({ name: op, index: opMatch.index });
     }
   });
+
+  // Sort by occurrence order in the source, then deduplicate by name
+  // while keeping the first occurrence. This preserves the chain order
+  // the user actually wrote.
+  occurrences.sort((a, b) => a.index - b.index);
+
+  const seen = new Set<string>();
+  const operators: string[] = [];
+  for (const occ of occurrences) {
+    if (!seen.has(occ.name)) {
+      seen.add(occ.name);
+      operators.push(occ.name);
+    }
+  }
 
   return operators;
 }

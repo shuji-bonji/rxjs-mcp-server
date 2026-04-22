@@ -356,5 +356,76 @@ describe('execute_stream tool', () => {
 
       expect(result.content[0].text).toContain('10');
     });
+
+    // --- Implicit return (no explicit `return` keyword) ---------------
+    // These ensure snippets that "just look like" the README examples work.
+
+    it('should implicitly return a trailing expression (no semicolon)', async () => {
+      const result = await executeStreamTool.handler({
+        code: 'of(1, 2, 3)',
+        takeCount: 10,
+        timeout: 5000,
+      });
+
+      expect(result.content[0].text).toContain('Completed');
+      expect(result.content[0].text).toContain('1');
+      expect(result.content[0].text).toContain('2');
+      expect(result.content[0].text).toContain('3');
+    });
+
+    it('should implicitly return a trailing expression (after declarations)', async () => {
+      const result = await executeStreamTool.handler({
+        code: `
+          const source$ = interval(10).pipe(take(3), map(x => x * 2));
+          source$
+        `,
+        takeCount: 10,
+        timeout: 5000,
+      });
+
+      expect(result.content[0].text).toContain('Completed');
+      expect(result.content[0].text).toContain('0');
+      expect(result.content[0].text).toContain('2');
+      expect(result.content[0].text).toContain('4');
+    });
+
+    it('should implicitly return a trailing pipe expression with trailing semicolon', async () => {
+      const result = await executeStreamTool.handler({
+        code: `
+          const source$ = of(1, 2, 3);
+          source$.pipe(map(x => x * 10));
+        `,
+        takeCount: 10,
+        timeout: 5000,
+      });
+
+      expect(result.content[0].text).toContain('10');
+      expect(result.content[0].text).toContain('20');
+      expect(result.content[0].text).toContain('30');
+    });
+
+    it('should still honor an explicit return when present (backward compat)', async () => {
+      const result = await executeStreamTool.handler({
+        code: `
+          const s$ = of('kept');
+          return s$;
+        `,
+        takeCount: 10,
+        timeout: 5000,
+      });
+
+      expect(result.content[0].text).toContain('kept');
+    });
+
+    it('should surface improved error message when result is not an Observable', async () => {
+      const result = await executeStreamTool.handler({
+        code: '42',
+        takeCount: 10,
+        timeout: 5000,
+      });
+
+      // New message mentions both "Observable" and the hint to end with an expression
+      expect(result.content[0].text).toContain('Observable');
+    });
   });
 });
