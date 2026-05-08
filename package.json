@@ -1,6 +1,6 @@
 {
   "name": "@shuji-bonji/rxjs-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "RxJS MCP Server - Execute, debug, and visualize RxJS streams for AI assistants",
   "keywords": [
     "mcp",
@@ -37,7 +37,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/index.js",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run",
