@@ -332,6 +332,38 @@ Future Meta-MCP integration will allow seamless coordination between these tools
 └─────────────────┘
 ```
 
+## Documentation Reference System
+
+Since v0.3.0, `analyze_operators` outputs three-tier documentation links for each operator and creation function:
+
+| Tier | Source | Purpose | AI-readable? |
+|------|--------|---------|:---:|
+| **Official** | [rxjs.dev](https://rxjs.dev) | Authoritative API reference for humans | ❌ (SPA) |
+| **Source** | [GitHub (tag 7.8.2)](https://github.com/ReactiveX/rxjs/tree/7.8.2/src/internal) | JSDoc + implementation — the richest context for AI | ✅ |
+| **Guide** | [RxJS-with-TypeScript](https://github.com/shuji-bonji/RxJS-with-TypeScript) | Bilingual JP/EN explanations with practical examples | ✅ |
+
+### Why include the community guide alongside official docs?
+
+1. **rxjs.dev is a client-rendered SPA.** AI assistants cannot fetch its content — HTTP requests return an empty shell with JavaScript loaders. The official site is therefore a "link to hand to humans," not a source AI can read.
+
+2. **GitHub source provides raw truth.** The RxJS source code (pinned at tag `7.8.2`) contains JSDoc, type signatures, and implementation details. This is the primary reference for AI assistants.
+
+3. **The bilingual guide adds learning context.** It organizes operators by use-case (not just alphabetically), provides runnable examples, and offers Japanese translations. For Japanese-speaking users or learners, this fills a gap that neither rxjs.dev nor raw source addresses.
+
+### Priority order
+
+When the MCP server outputs references, it follows this priority:
+
+1. `officialUrl` — always shown (authority, human-readable)
+2. `sourceUrl` — shown when available (AI should read this)
+3. `guideUrl` — shown when the page exists (supplementary)
+
+If a guide page does not yet exist for an operator, the field is simply omitted (no broken link). Coverage is tracked by the [URL validation CI](.github/workflows/url-validation.yml).
+
+### Can I disable the guide references?
+
+Currently there is no runtime option to exclude `guideUrl` from output. If you prefer official-only references, you can fork this server or open a feature request. A future version may support a `--references=official,source` flag.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a PR.

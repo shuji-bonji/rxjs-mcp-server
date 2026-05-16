@@ -55,8 +55,8 @@ export type PipeableOperatorCategory =
 // URL Constants
 // ============================================
 
-/** Bilingual guide site (JP/EN) */
-export const GUIDE_BASE_URL = 'https://shuji-bonji.github.io/RxJS-with-TypeScript/en/guide';
+/** Bilingual guide repository (JP/EN) — raw markdown, AI-readable */
+export const GUIDE_BASE_URL = 'https://github.com/shuji-bonji/RxJS-with-TypeScript/blob/main/docs/en/guide';
 
 /** Official RxJS documentation (SPA — not AI-readable, but authoritative for humans) */
 export const OFFICIAL_BASE_URL = 'https://rxjs.dev';
@@ -87,9 +87,9 @@ export function buildSourceUrl(path: string): string {
   return `${SOURCE_BASE_URL}/${path}`;
 }
 
-/** Build guide site URL */
+/** Build guide repository URL (raw markdown on GitHub) */
 export function buildGuideUrl(path: string): string {
-  return `${GUIDE_BASE_URL}/${path}`;
+  return `${GUIDE_BASE_URL}/${path}.md`;
 }
 
 // ============================================

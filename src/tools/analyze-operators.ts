@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ToolImplementation, ToolResponse, CreationFunctionInfo, OperatorInfo, GUIDE_BASE_URL } from '../types.js';
+import { ToolImplementation, ToolResponse, CreationFunctionInfo, OperatorInfo } from '../types.js';
 import { creationFunctionDatabase } from '../data/creation-functions.js';
 import { operatorDatabase } from '../data/operators.js';
 
@@ -344,7 +344,7 @@ export const analyzeOperatorsTool: ToolImplementation = {
 
       // Documentation reference
       parts.push('---');
-      parts.push(`📚 Reference: [RxJS with TypeScript](${GUIDE_BASE_URL})`);
+      parts.push(`📚 Reference: [RxJS with TypeScript](https://github.com/shuji-bonji/RxJS-with-TypeScript)`);
 
       return {
         content: [{
