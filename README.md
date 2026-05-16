@@ -212,6 +212,31 @@ Available patterns:
 - `cache-refresh` - Cache with refresh strategy
 - And more...
 
+### lint_rxjs
+
+Lint RxJS code snippets for common issues and best practices. Based on [eslint-plugin-rxjs-x](https://github.com/JasonWeinzierl/eslint-plugin-rxjs-x) rules.
+
+```typescript
+// Parameters:
+{
+  code: string;           // RxJS code to lint
+  config?: 'recommended' | 'strict';  // Rule set (default: recommended)
+  framework?: 'angular' | 'react' | 'vue' | 'none'; // Framework context
+  rules?: string[];       // Specific rules to check (overrides config)
+}
+```
+
+**Config levels:**
+
+- `recommended` — 20 rules covering the most common issues
+- `strict` — All rules including style checks (finnish, no-exposed-subjects, etc.)
+
+**Framework-specific checks:**
+
+- **Angular** — Detects missing `takeUntilDestroyed()` or `takeUntil(destroy$)` in components
+- **React** — Detects `subscribe()` without `useEffect` cleanup
+- **Vue** — Detects `subscribe()` without `onUnmounted` cleanup
+
 ## Usage Examples
 
 ### With Claude
@@ -329,6 +354,7 @@ Future Meta-MCP integration will allow seamless coordination between these tools
 │ • analyze_operators│
 │ • detect_memory_leak│
 │ • suggest_pattern│
+│ • lint_rxjs      │
 └─────────────────┘
 ```
 

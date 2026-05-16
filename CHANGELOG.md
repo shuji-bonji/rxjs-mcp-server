@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-17
+
+### Added
+- **`lint_rxjs` ツール**: eslint-plugin-rxjs-x の recommended/strict ルールを正規表現ベースで再実装。コードスニペットを渡すだけで即座にフィードバック（ESLint 不要）
+  - **20 recommended ルール**: no-async-subscribe, no-create, no-nested-subscribe, no-sharereplay, prefer-root-operators, no-topromise, no-unsafe-takeuntil, throw-error 等
+  - **8 strict ルール**: no-exposed-subjects, no-floating-observables, no-misused-observables, no-subclass, finnish 等
+  - **フレームワーク固有ルール**: Angular (takeUntilDestroyed 推奨), React (useEffect 内 subscribe), Vue (onUnmounted cleanup)
+  - `config` パラメータ: `recommended`（デフォルト）/ `strict`
+  - `framework` パラメータ: `angular` / `react` / `vue` / `none`
+  - `rules` パラメータ: 個別ルール指定可能
+
+### Changed
+- `DOC_BASE_URL` エイリアスを削除 (v0.3.0 で deprecated 告知済み)
+
 ## [0.3.0] - 2026-05-16
 
 ### BREAKING

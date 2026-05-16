@@ -8,13 +8,14 @@ import { generateMarbleTool } from './tools/marble-diagram.js';
 import { analyzeOperatorsTool } from './tools/analyze-operators.js';
 import { detectMemoryLeakTool } from './tools/memory-leak.js';
 import { suggestPatternTool } from './tools/suggest-pattern.js';
+import { lintRxjsTool } from './tools/lint-rxjs.js';
 import { ToolHandler, ToolDefinition } from './types.js';
 
 // Server configuration
 const server = new Server(
   {
     name: 'rxjs-mcp',
-    version: '0.2.0',
+    version: '0.4.0',
   },
   {
     capabilities: {
@@ -30,6 +31,7 @@ const tools: ToolDefinition[] = [
   analyzeOperatorsTool.definition,
   detectMemoryLeakTool.definition,
   suggestPatternTool.definition,
+  lintRxjsTool.definition,
 ];
 
 // Tool handlers mapping
@@ -39,6 +41,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   'analyze_operators': analyzeOperatorsTool.handler,
   'detect_memory_leak': detectMemoryLeakTool.handler,
   'suggest_pattern': suggestPatternTool.handler,
+  'lint_rxjs': lintRxjsTool.handler,
 };
 
 // Handle list tools request

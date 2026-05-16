@@ -65,10 +65,6 @@ export const OFFICIAL_BASE_URL = 'https://rxjs.dev';
 export const RXJS_VERSION_TAG = '7.8.2';
 export const SOURCE_BASE_URL = `https://github.com/ReactiveX/rxjs/blob/${RXJS_VERSION_TAG}/src/internal`;
 
-/**
- * @deprecated Use GUIDE_BASE_URL instead. Will be removed in v0.4.0.
- */
-export const DOC_BASE_URL = GUIDE_BASE_URL;
 
 // ============================================
 // URL Helpers
