@@ -289,9 +289,9 @@ const noNestedSubscribe: LintRule = {
 
       // Check if any other subscribe match falls inside this range
       const innerContent = code.slice(outerStart + 1, endIndex);
-      const innerSubscribe = /\.subscribe\s*\(/.exec(innerContent);
-      if (innerSubscribe) {
-        const absolutePos = outerStart + 1 + innerSubscribe.index;
+      const innerSubscribes = findAll(innerContent, /\.subscribe\s*\(/g);
+      for (const innerSub of innerSubscribes) {
+        const absolutePos = outerStart + 1 + innerSub.index;
         diagnostics.push({
           rule: this.name,
           severity: this.severity,
@@ -300,7 +300,6 @@ const noNestedSubscribe: LintRule = {
           suggestion: 'Refactor to: source$.pipe(switchMap(value => inner$)).subscribe()',
           docUrl: this.docUrl,
         });
-        break; // Report once per code snippet
       }
     }
     return diagnostics;
@@ -478,7 +477,6 @@ const noUnsafeTakeuntil: LintRule = {
                       suggestion: 'Move takeUntil to the end of the pipe (before share/finalize only).',
                       docUrl: this.docUrl,
                     });
-                    break;
                   }
                 }
               }

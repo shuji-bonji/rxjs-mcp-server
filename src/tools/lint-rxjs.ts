@@ -31,9 +31,10 @@ export const lintRxjsTool: ToolImplementation = {
   definition: {
     name: 'lint_rxjs',
     description:
-      'Lint RxJS code for common issues and best practices. ' +
+      'Lint RxJS code snippets for common issues and best practices (regex-based best-effort analysis, no ESLint runtime required). ' +
       'Based on eslint-plugin-rxjs-x rules. ' +
       'Checks for nested subscribes, memory leaks, deprecated patterns, and more. ' +
+      'Rules marked as type-info-required use heuristics and may have false positives/negatives. ' +
       'Supports framework-specific rules for Angular, React, and Vue.',
     inputSchema: inputSchema,
     annotations: {
@@ -65,7 +66,9 @@ export const lintRxjsTool: ToolImplementation = {
 
       // Run all applicable rules
       const diagnostics: LintDiagnostic[] = [];
+      const typeInfoRules = new Set<string>();
       for (const rule of rulesToRun) {
+        if (rule.requiresTypeInfo) typeInfoRules.add(rule.name);
         const results = rule.check(code, framework as FrameworkContext);
         diagnostics.push(...results);
       }
@@ -112,7 +115,8 @@ export const lintRxjsTool: ToolImplementation = {
         for (const diag of diagnostics) {
           const icon = severityIcon[diag.severity];
           const lineInfo = diag.line ? ` (line ${diag.line})` : '';
-          parts.push(`${icon} **${diag.rule}**${lineInfo}`);
+          const heuristic = typeInfoRules.has(diag.rule) ? ' 🔍' : '';
+          parts.push(`${icon} **${diag.rule}**${lineInfo}${heuristic}`);
           parts.push(`   ${diag.message}`);
           if (diag.suggestion) {
             parts.push(`   💡 *${diag.suggestion}*`);
@@ -124,6 +128,10 @@ export const lintRxjsTool: ToolImplementation = {
 
       // Footer
       parts.push('---');
+      if (diagnostics.length > 0 && diagnostics.some(d => typeInfoRules.has(d.rule))) {
+        parts.push('🔍 = heuristic detection (normally requires type information)');
+        parts.push('');
+      }
       parts.push('📚 Reference: [eslint-plugin-rxjs-x](https://github.com/JasonWeinzierl/eslint-plugin-rxjs-x)');
       if (framework === 'angular') {
         parts.push(' | [eslint-plugin-rxjs-angular-x](https://github.com/JasonWeinzierl/eslint-plugin-rxjs-angular-x)');

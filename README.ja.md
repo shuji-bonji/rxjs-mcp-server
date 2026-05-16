@@ -62,6 +62,12 @@ ClaudeなどのAIアシスタントから直接RxJSストリームを実行、�
   - 状態管理
   - その他多数...
 
+### 🔍 RxJS Lint（v0.4.0〜）
+- eslint-plugin-rxjs-x ルールの正規表現ベース再実装
+- ESLint / TypeScript パーサー不要で即チェック
+- recommended（20ルール）/ strict（28ルール）の2段階
+- Angular / React / Vue 固有のフレームワークルール対応
+
 ## インストール
 
 ```bash
@@ -197,6 +203,31 @@ source$.pipe(
 - `cache-refresh` - リフレッシュ戦略付きキャッシュ
 - その他多数...
 
+### lint_rxjs
+
+RxJSコードスニペットを静的解析し、一般的な問題とベストプラクティスを検出します。[eslint-plugin-rxjs-x](https://github.com/JasonWeinzierl/eslint-plugin-rxjs-x) のルールを正規表現ベースで再実装しています（ESLint不要）。
+
+```typescript
+// パラメータ:
+{
+  code: string;           // 解析対象の RxJS コード
+  config?: 'recommended' | 'strict';  // ルールセット（デフォルト: recommended）
+  framework?: 'angular' | 'react' | 'vue' | 'none'; // フレームワークコンテキスト
+  rules?: string[];       // 個別ルール指定（config を上書き）
+}
+```
+
+**Config レベル:**
+
+- `recommended` — 最も一般的な問題をカバーする20ルール
+- `strict` — スタイルチェック含む全ルール（finnish, no-exposed-subjects 等）
+
+**フレームワーク固有チェック:**
+
+- **Angular** — コンポーネント内の `takeUntilDestroyed()` / `takeUntil(destroy$)` 欠落を検出
+- **React** — `useEffect` なしの `subscribe()` を検出
+- **Vue** — `onUnmounted` なしの `subscribe()` を検出
+
 ## 使用例
 
 ### Claudeでの使用
@@ -300,6 +331,7 @@ RxJS MCP Serverは以下と組み合わせて使用できます：
 │ • analyze_operators│
 │ • detect_memory_leak│
 │ • suggest_pattern│
+│ • lint_rxjs      │
 └─────────────────┘
 ```
 

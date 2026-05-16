@@ -3,6 +3,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { createRequire } from 'node:module';
 import { executeStreamTool } from './tools/execute-stream.js';
 import { generateMarbleTool } from './tools/marble-diagram.js';
 import { analyzeOperatorsTool } from './tools/analyze-operators.js';
@@ -11,11 +12,15 @@ import { suggestPatternTool } from './tools/suggest-pattern.js';
 import { lintRxjsTool } from './tools/lint-rxjs.js';
 import { ToolHandler, ToolDefinition } from './types.js';
 
+// Read version from package.json (single source of truth)
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
+
 // Server configuration
 const server = new Server(
   {
     name: 'rxjs-mcp',
-    version: '0.4.0',
+    version,
   },
   {
     capabilities: {

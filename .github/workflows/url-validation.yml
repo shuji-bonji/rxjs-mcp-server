@@ -47,6 +47,7 @@ jobs:
           node --input-type=module << 'EOF'
           import { operatorDatabase } from './dist/data/operators.js';
           import { creationFunctionDatabase } from './dist/data/creation-functions.js';
+          import { allLintRules } from './dist/data/lint-rules.js';
 
           const urls = new Set();
 
@@ -62,6 +63,11 @@ jobs:
             if (fn.officialUrl) urls.add(fn.officialUrl);
             if (fn.sourceUrl) urls.add(fn.sourceUrl);
             if (fn.guideUrl) urls.add(fn.guideUrl);
+          }
+
+          // Collect all URLs from lint rules
+          for (const rule of allLintRules) {
+            if (rule.docUrl) urls.add(rule.docUrl);
           }
 
           console.log(`\n📋 Checking ${urls.size} unique URLs...\n`);

@@ -9,7 +9,7 @@ export interface ToolResponse {
 }
 
 // Tool handler function type
-export type ToolHandler = (args: any) => Promise<ToolResponse>;
+export type ToolHandler = (args: unknown) => Promise<ToolResponse>;
 
 // Tool definition structure
 export interface ToolDefinition {
