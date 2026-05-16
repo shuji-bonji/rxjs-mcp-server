@@ -51,16 +51,77 @@ export type PipeableOperatorCategory =
   | 'error-handling'  // catchError, retry, retryWhen
   | 'multicasting';   // share, shareReplay
 
-// Base URL for documentation
-export const DOC_BASE_URL = 'https://shuji-bonji.github.io/RxJS-with-TypeScript/en/guide';
+// ============================================
+// URL Constants
+// ============================================
+
+/** Bilingual guide site (JP/EN) */
+export const GUIDE_BASE_URL = 'https://shuji-bonji.github.io/RxJS-with-TypeScript/en/guide';
+
+/** Official RxJS documentation (SPA — not AI-readable, but authoritative for humans) */
+export const OFFICIAL_BASE_URL = 'https://rxjs.dev';
+
+/** GitHub source pinned at stable tag (AI-readable, contains JSDoc + implementation) */
+export const RXJS_VERSION_TAG = '7.8.2';
+export const SOURCE_BASE_URL = `https://github.com/ReactiveX/rxjs/blob/${RXJS_VERSION_TAG}/src/internal`;
+
+/**
+ * @deprecated Use GUIDE_BASE_URL instead. Will be removed in v0.4.0.
+ */
+export const DOC_BASE_URL = GUIDE_BASE_URL;
+
+// ============================================
+// URL Helpers
+// ============================================
+
+/** Build official rxjs.dev URL for an operator or creation function */
+export function buildOfficialUrl(type: 'operator' | 'creation', name: string): string {
+  if (type === 'creation') {
+    return `${OFFICIAL_BASE_URL}/api/index/function/${name}`;
+  }
+  return `${OFFICIAL_BASE_URL}/api/operators/${name}`;
+}
+
+/** Build GitHub source URL for an operator */
+export function buildSourceUrl(path: string): string {
+  return `${SOURCE_BASE_URL}/${path}`;
+}
+
+/** Build guide site URL */
+export function buildGuideUrl(path: string): string {
+  return `${GUIDE_BASE_URL}/${path}`;
+}
+
+// ============================================
+// Deprecation Metadata
+// ============================================
+
+export interface DeprecationInfo {
+  /** Whether this API is deprecated */
+  deprecated: true;
+  /** RxJS version when deprecated (e.g., '7.2.0') */
+  since: string;
+  /** Recommended replacement (e.g., 'map' or 'retry({ delay })') */
+  replacement: string;
+}
+
+// ============================================
+// Data Interfaces
+// ============================================
 
 // Creation Function information
 export interface CreationFunctionInfo {
   name: string;
   category: CreationFunctionCategory;
   description: string;
-  docUrl: string;
+  /** Official rxjs.dev URL (authoritative, human-readable) */
+  officialUrl: string;
+  /** GitHub source URL pinned at tag (AI-readable) */
+  sourceUrl?: string;
+  /** Bilingual guide URL (JP/EN learner-friendly) */
+  guideUrl?: string;
   marblePattern?: string;
+  deprecation?: DeprecationInfo;
 }
 
 // Pipeable Operator information
@@ -68,8 +129,14 @@ export interface OperatorInfo {
   name: string;
   category: PipeableOperatorCategory;
   description: string;
-  docUrl: string;
+  /** Official rxjs.dev URL (authoritative, human-readable) */
+  officialUrl: string;
+  /** GitHub source URL pinned at tag (AI-readable) */
+  sourceUrl?: string;
+  /** Bilingual guide URL (JP/EN learner-friendly) */
+  guideUrl?: string;
   marblePattern?: string;
+  deprecation?: DeprecationInfo;
 }
 
 // Legacy type alias for backward compatibility

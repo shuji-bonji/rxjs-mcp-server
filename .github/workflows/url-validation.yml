@@ -1,0 +1,117 @@
+name: URL Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/data/**'
+      - 'src/types.ts'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/data/**'
+      - 'src/types.ts'
+  # Allow manual trigger
+  workflow_dispatch:
+  # Weekly check (URLs can go stale without code changes)
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9:00 UTC
+
+concurrency:
+  group: url-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-urls:
+    name: Validate documentation URLs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Extract and validate URLs
+        run: |
+          node --input-type=module << 'EOF'
+          import { operatorDatabase } from './dist/data/operators.js';
+          import { creationFunctionDatabase } from './dist/data/creation-functions.js';
+
+          const urls = new Set();
+
+          // Collect all URLs from operator database
+          for (const op of Object.values(operatorDatabase)) {
+            if (op.officialUrl) urls.add(op.officialUrl);
+            if (op.sourceUrl) urls.add(op.sourceUrl);
+            if (op.guideUrl) urls.add(op.guideUrl);
+          }
+
+          // Collect all URLs from creation function database
+          for (const fn of Object.values(creationFunctionDatabase)) {
+            if (fn.officialUrl) urls.add(fn.officialUrl);
+            if (fn.sourceUrl) urls.add(fn.sourceUrl);
+            if (fn.guideUrl) urls.add(fn.guideUrl);
+          }
+
+          console.log(`\n📋 Checking ${urls.size} unique URLs...\n`);
+
+          const results = { ok: 0, fail: 0, skip: 0 };
+          const failures = [];
+
+          for (const url of [...urls].sort()) {
+            try {
+              const res = await fetch(url, {
+                method: 'HEAD',
+                redirect: 'follow',
+                signal: AbortSignal.timeout(10000),
+              });
+
+              // rxjs.dev is a SPA so HEAD might return 200 even for nonexistent pages
+              // For rxjs.dev, just check the domain is reachable
+              if (url.includes('rxjs.dev')) {
+                if (res.ok) {
+                  results.skip++;
+                  console.log(`⏭️  ${url} (SPA — connectivity only)`);
+                } else {
+                  results.fail++;
+                  failures.push({ url, status: res.status });
+                  console.log(`❌ ${url} → ${res.status}`);
+                }
+              } else if (res.ok) {
+                results.ok++;
+                console.log(`✅ ${url}`);
+              } else {
+                results.fail++;
+                failures.push({ url, status: res.status });
+                console.log(`❌ ${url} → ${res.status}`);
+              }
+            } catch (err) {
+              results.fail++;
+              failures.push({ url, status: err.message });
+              console.log(`❌ ${url} → ${err.message}`);
+            }
+          }
+
+          console.log(`\n${'='.repeat(60)}`);
+          console.log(`Results: ✅ ${results.ok} ok | ⏭️ ${results.skip} skipped (SPA) | �� ${results.fail} failed`);
+          console.log(`${'='.repeat(60)}\n`);
+
+          if (failures.length > 0) {
+            console.log('Failed URLs:');
+            for (const f of failures) {
+              console.log(`  - ${f.url} (${f.status})`);
+            }
+            process.exit(1);
+          }
+          EOF

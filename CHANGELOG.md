@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-16
+
+### BREAKING
+- **`OperatorInfo` / `CreationFunctionInfo` 型変更**: `docUrl` フィールドを廃止し、3階層参照 (`officialUrl` / `sourceUrl` / `guideUrl`) に置き換え。`DOC_BASE_URL` は `GUIDE_BASE_URL` のエイリアスとして残存するが v0.4.0 で削除予定。
+
+### Added
+- **3階層ドキュメント参照システム**:
+  - `officialUrl` — rxjs.dev (権威的、人間向け)
+  - `sourceUrl` — GitHub ソース (tag `7.8.2` 固定、AI が読めるJSDoc + 実装)
+  - `guideUrl` — バイリンガルガイドサイト (JP/EN 学習者向け)
+- **Deprecation メタデータ** (`DeprecationInfo`): `deprecated` / `since` / `replacement` フィールドを追加。対象: `pluck` (7.2.0), `mapTo` (7.2.0), `retryWhen` (7.3.0)
+- **URL ヘルパー関数**: `buildOfficialUrl()`, `buildSourceUrl()`, `buildGuideUrl()` を `types.ts` に追加
+- **analyze_operators 出力強化**:
+  - 各演算子に Official / Source / Guide の3階層リンクを表示
+  - deprecated な演算子に⚠️警告と代替案を inline 表示
+- **URL validation CI** (`.github/workflows/url-validation.yml`): push/PR/週次スケジュールで全 URL の HTTP ステータスを自動検証
+
+### Changed
+- `analyze_operators` のリファレンスリンク形式を `📖 [Documentation](...)` から `📖 [Official](...) | [Source](...) | [Guide](...)` に変更
+
 ## [0.2.2] - 2026-05-16
 
 ### Fixed

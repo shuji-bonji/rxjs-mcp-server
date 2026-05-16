@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ToolImplementation, ToolResponse, CreationFunctionInfo, DOC_BASE_URL } from '../types.js';
+import { ToolImplementation, ToolResponse, CreationFunctionInfo, OperatorInfo, GUIDE_BASE_URL } from '../types.js';
 import { creationFunctionDatabase } from '../data/creation-functions.js';
 import { operatorDatabase } from '../data/operators.js';
 
@@ -9,6 +9,21 @@ const inputSchema = z.object({
   includeAlternatives: z.boolean().optional().default(true).describe('Whether to suggest alternative approaches'),
   checkPerformance: z.boolean().optional().default(true).describe('Whether to check for performance issues'),
 });
+
+// Build formatted reference links from three-tier URLs
+function buildReferenceLinks(info: OperatorInfo | CreationFunctionInfo): string {
+  const links: string[] = [];
+  if (info.officialUrl) {
+    links.push(`[Official](${info.officialUrl})`);
+  }
+  if (info.sourceUrl) {
+    links.push(`[Source](${info.sourceUrl})`);
+  }
+  if (info.guideUrl) {
+    links.push(`[Guide](${info.guideUrl})`);
+  }
+  return links.length > 0 ? `📖 ${links.join(' | ')}` : '';
+}
 
 // Extract creation functions from code
 function extractCreationFunctions(code: string): string[] {
@@ -117,7 +132,7 @@ function analyzeCreationFunctions(functions: string[]): CreationFunctionInfo[] {
       name: fn,
       category: 'basic' as const,
       description: 'Unknown creation function',
-      docUrl: '',
+      officialUrl: '',
     };
   });
 }
@@ -134,7 +149,7 @@ function analyzeOperatorChain(operators: string[], checkPerformance: boolean) {
         name: op,
         category: 'utility' as const,
         description: 'Custom or unknown operator',
-        docUrl: '',
+        officialUrl: '',
       };
     }),
     categories: {} as Record<string, number>,
@@ -261,8 +276,12 @@ export const analyzeOperatorsTool: ToolImplementation = {
           parts.push(`**${category}:**`);
           fns.forEach(fn => {
             parts.push(`- **${fn.name}**: ${fn.description}`);
-            if (fn.docUrl) {
-              parts.push(`  - 📖 [Documentation](${fn.docUrl})`);
+            if (fn.deprecation) {
+              parts.push(`  - ⚠️ **Deprecated** (since ${fn.deprecation.since}) → Use \`${fn.deprecation.replacement}\``);
+            }
+            const refs = buildReferenceLinks(fn);
+            if (refs) {
+              parts.push(`  - ${refs}`);
             }
           });
           parts.push('');
@@ -288,11 +307,15 @@ export const analyzeOperatorsTool: ToolImplementation = {
         operatorAnalysis.operators.forEach((op, i) => {
           parts.push(`${i + 1}. **${op.name}** (${op.category})`);
           parts.push(`   - ${op.description}`);
+          if (op.deprecation) {
+            parts.push(`   - ⚠️ **Deprecated** (since ${op.deprecation.since}) → Use \`${op.deprecation.replacement}\``);
+          }
           if (op.marblePattern) {
             parts.push(`   - Pattern: \`${op.marblePattern}\``);
           }
-          if (op.docUrl) {
-            parts.push(`   - 📖 [Documentation](${op.docUrl})`);
+          const refs = buildReferenceLinks(op);
+          if (refs) {
+            parts.push(`   - ${refs}`);
           }
         });
         parts.push('');
@@ -321,7 +344,7 @@ export const analyzeOperatorsTool: ToolImplementation = {
 
       // Documentation reference
       parts.push('---');
-      parts.push(`📚 Reference: [RxJS with TypeScript](${DOC_BASE_URL})`);
+      parts.push(`📚 Reference: [RxJS with TypeScript](${GUIDE_BASE_URL})`);
 
       return {
         content: [{

@@ -377,7 +377,7 @@ describe('analyze_operators tool', () => {
         code: 'source$.pipe(map(x => x));',
       });
 
-      expect(result.content[0].text).toContain('Documentation');
+      expect(result.content[0].text).toContain('Official');
       expect(result.content[0].text).toContain('https://');
     });
 

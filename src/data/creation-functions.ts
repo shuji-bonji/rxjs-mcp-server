@@ -1,7 +1,14 @@
-import { CreationFunctionInfo, DOC_BASE_URL } from '../types.js';
+import {
+  CreationFunctionInfo,
+  buildOfficialUrl,
+  buildSourceUrl,
+  buildGuideUrl,
+} from '../types.js';
 
 /**
  * RxJS Creation Functions Database
+ * Three-tier reference: officialUrl (rxjs.dev) / sourceUrl (GitHub) / guideUrl (bilingual site)
+ *
  * Based on https://shuji-bonji.github.io/RxJS-with-TypeScript/
  */
 export const creationFunctionDatabase: Record<string, CreationFunctionInfo> = {
@@ -10,31 +17,41 @@ export const creationFunctionDatabase: Record<string, CreationFunctionInfo> = {
     name: 'of',
     category: 'basic',
     description: 'Emits the arguments you provide, then completes',
-    docUrl: `${DOC_BASE_URL}/creation-functions/basic/of`,
+    officialUrl: buildOfficialUrl('creation', 'of'),
+    sourceUrl: buildSourceUrl('observable/of.ts'),
+    guideUrl: buildGuideUrl('creation-functions/basic/of'),
   },
   'from': {
     name: 'from',
     category: 'basic',
     description: 'Creates an Observable from an Array, Promise, or Iterable',
-    docUrl: `${DOC_BASE_URL}/creation-functions/basic/from`,
+    officialUrl: buildOfficialUrl('creation', 'from'),
+    sourceUrl: buildSourceUrl('observable/from.ts'),
+    guideUrl: buildGuideUrl('creation-functions/basic/from'),
   },
   'fromEvent': {
     name: 'fromEvent',
     category: 'basic',
     description: 'Creates an Observable from DOM events',
-    docUrl: `${DOC_BASE_URL}/creation-functions/basic/fromEvent`,
+    officialUrl: buildOfficialUrl('creation', 'fromEvent'),
+    sourceUrl: buildSourceUrl('observable/fromEvent.ts'),
+    guideUrl: buildGuideUrl('creation-functions/basic/fromEvent'),
   },
   'interval': {
     name: 'interval',
     category: 'basic',
     description: 'Emits incremental numbers at specified intervals',
-    docUrl: `${DOC_BASE_URL}/creation-functions/basic/interval`,
+    officialUrl: buildOfficialUrl('creation', 'interval'),
+    sourceUrl: buildSourceUrl('observable/interval.ts'),
+    guideUrl: buildGuideUrl('creation-functions/basic/interval'),
   },
   'timer': {
     name: 'timer',
     category: 'basic',
     description: 'Emits after a delay, then optionally at intervals',
-    docUrl: `${DOC_BASE_URL}/creation-functions/basic/timer`,
+    officialUrl: buildOfficialUrl('creation', 'timer'),
+    sourceUrl: buildSourceUrl('observable/timer.ts'),
+    guideUrl: buildGuideUrl('creation-functions/basic/timer'),
   },
 
   // loop
@@ -42,13 +59,17 @@ export const creationFunctionDatabase: Record<string, CreationFunctionInfo> = {
     name: 'range',
     category: 'loop',
     description: 'Emits a sequence of numbers within a range',
-    docUrl: `${DOC_BASE_URL}/creation-functions/loop/range`,
+    officialUrl: buildOfficialUrl('creation', 'range'),
+    sourceUrl: buildSourceUrl('observable/range.ts'),
+    guideUrl: buildGuideUrl('creation-functions/loop/range'),
   },
   'generate': {
     name: 'generate',
     category: 'loop',
     description: 'Creates an Observable with custom iteration logic',
-    docUrl: `${DOC_BASE_URL}/creation-functions/loop/generate`,
+    officialUrl: buildOfficialUrl('creation', 'generate'),
+    sourceUrl: buildSourceUrl('observable/generate.ts'),
+    guideUrl: buildGuideUrl('creation-functions/loop/generate'),
   },
 
   // http
@@ -56,13 +77,17 @@ export const creationFunctionDatabase: Record<string, CreationFunctionInfo> = {
     name: 'ajax',
     category: 'http',
     description: 'Creates an Observable for AJAX requests',
-    docUrl: `${DOC_BASE_URL}/creation-functions/http-communication/ajax`,
+    officialUrl: 'https://rxjs.dev/api/ajax/ajax',
+    sourceUrl: buildSourceUrl('ajax/ajax.ts'),
+    guideUrl: buildGuideUrl('creation-functions/http-communication/ajax'),
   },
   'fromFetch': {
     name: 'fromFetch',
     category: 'http',
     description: 'Creates an Observable from Fetch API',
-    docUrl: `${DOC_BASE_URL}/creation-functions/http-communication/fromFetch`,
+    officialUrl: buildOfficialUrl('creation', 'fromFetch'),
+    sourceUrl: buildSourceUrl('observable/dom/fetch.ts'),
+    guideUrl: buildGuideUrl('creation-functions/http-communication/fromFetch'),
   },
 
   // combination
@@ -70,31 +95,41 @@ export const creationFunctionDatabase: Record<string, CreationFunctionInfo> = {
     name: 'concat',
     category: 'combination',
     description: 'Concatenates Observables in sequence',
-    docUrl: `${DOC_BASE_URL}/creation-functions/combination/concat`,
+    officialUrl: buildOfficialUrl('creation', 'concat'),
+    sourceUrl: buildSourceUrl('observable/concat.ts'),
+    guideUrl: buildGuideUrl('creation-functions/combination/concat'),
   },
   'merge': {
     name: 'merge',
     category: 'combination',
     description: 'Combines multiple Observables, emitting all values',
-    docUrl: `${DOC_BASE_URL}/creation-functions/combination/merge`,
+    officialUrl: buildOfficialUrl('creation', 'merge'),
+    sourceUrl: buildSourceUrl('observable/merge.ts'),
+    guideUrl: buildGuideUrl('creation-functions/combination/merge'),
   },
   'combineLatest': {
     name: 'combineLatest',
     category: 'combination',
     description: 'Combines latest values from all Observables',
-    docUrl: `${DOC_BASE_URL}/creation-functions/combination/combineLatest`,
+    officialUrl: buildOfficialUrl('creation', 'combineLatest'),
+    sourceUrl: buildSourceUrl('observable/combineLatest.ts'),
+    guideUrl: buildGuideUrl('creation-functions/combination/combineLatest'),
   },
   'zip': {
     name: 'zip',
     category: 'combination',
     description: 'Combines values by index into arrays',
-    docUrl: `${DOC_BASE_URL}/creation-functions/combination/zip`,
+    officialUrl: buildOfficialUrl('creation', 'zip'),
+    sourceUrl: buildSourceUrl('observable/zip.ts'),
+    guideUrl: buildGuideUrl('creation-functions/combination/zip'),
   },
   'forkJoin': {
     name: 'forkJoin',
     category: 'combination',
     description: 'Waits for all to complete, emits final values',
-    docUrl: `${DOC_BASE_URL}/creation-functions/combination/forkJoin`,
+    officialUrl: buildOfficialUrl('creation', 'forkJoin'),
+    sourceUrl: buildSourceUrl('observable/forkJoin.ts'),
+    guideUrl: buildGuideUrl('creation-functions/combination/forkJoin'),
   },
 
   // selection
@@ -102,13 +137,17 @@ export const creationFunctionDatabase: Record<string, CreationFunctionInfo> = {
     name: 'race',
     category: 'selection',
     description: 'Emits from the Observable that emits first',
-    docUrl: `${DOC_BASE_URL}/creation-functions/selection/race`,
+    officialUrl: buildOfficialUrl('creation', 'race'),
+    sourceUrl: buildSourceUrl('observable/race.ts'),
+    guideUrl: buildGuideUrl('creation-functions/selection/race'),
   },
   'partition': {
     name: 'partition',
     category: 'selection',
     description: 'Splits Observable into two based on predicate',
-    docUrl: `${DOC_BASE_URL}/creation-functions/selection/partition`,
+    officialUrl: buildOfficialUrl('creation', 'partition'),
+    sourceUrl: buildSourceUrl('observable/partition.ts'),
+    guideUrl: buildGuideUrl('creation-functions/selection/partition'),
   },
 
   // conditional
@@ -116,13 +155,17 @@ export const creationFunctionDatabase: Record<string, CreationFunctionInfo> = {
     name: 'iif',
     category: 'conditional',
     description: 'Subscribes to one of two Observables based on condition',
-    docUrl: `${DOC_BASE_URL}/creation-functions/conditional/iif`,
+    officialUrl: buildOfficialUrl('creation', 'iif'),
+    sourceUrl: buildSourceUrl('observable/iif.ts'),
+    guideUrl: buildGuideUrl('creation-functions/conditional/iif'),
   },
   'defer': {
     name: 'defer',
     category: 'conditional',
     description: 'Creates Observable lazily at subscription time',
-    docUrl: `${DOC_BASE_URL}/creation-functions/conditional/defer`,
+    officialUrl: buildOfficialUrl('creation', 'defer'),
+    sourceUrl: buildSourceUrl('observable/defer.ts'),
+    guideUrl: buildGuideUrl('creation-functions/conditional/defer'),
   },
 
   // control
@@ -130,12 +173,16 @@ export const creationFunctionDatabase: Record<string, CreationFunctionInfo> = {
     name: 'scheduled',
     category: 'control',
     description: 'Creates an Observable with a specific scheduler',
-    docUrl: `${DOC_BASE_URL}/creation-functions/control/scheduled`,
+    officialUrl: buildOfficialUrl('creation', 'scheduled'),
+    sourceUrl: buildSourceUrl('scheduled/scheduled.ts'),
+    guideUrl: buildGuideUrl('creation-functions/control/scheduled'),
   },
   'using': {
     name: 'using',
     category: 'control',
     description: 'Creates Observable with resource management',
-    docUrl: `${DOC_BASE_URL}/creation-functions/control/using`,
+    officialUrl: buildOfficialUrl('creation', 'using'),
+    sourceUrl: buildSourceUrl('observable/using.ts'),
+    guideUrl: buildGuideUrl('creation-functions/control/using'),
   },
 };
