@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-05-16
+
+### Fixed
+- **suggest_pattern**: パターンテンプレート内の `import { ... } from 'rxjs/operators'` を `from 'rxjs'` に修正。RxJS 7.2+ 推奨の統一インポートスタイルに合わせ、AI アシスタントが古い import を提案する問題を解消。対象パターン: `http-retry`, `search-typeahead`, `polling`, `websocket-reconnect`, `form-validation`, `state-management`, `cache-refresh`, `adaptPatternForFramework` (Vue)
+- **analyze_operators**: `ajax` と `fromFetch` の `docUrl` のパスセグメント `creation-functions/http/` を `creation-functions/http-communication/` に修正。ガイドサイトへのリンクが 404 になっていた問題を解消
+
 ## [0.2.1] - 2026-05-09
 
 ### Build

@@ -12,7 +12,7 @@ export const patterns: Record<string, PatternSuggestion> = {
     code: `// HTTP request with exponential backoff retry
 import { throwError, timer, of } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
-import { retryWhen, mergeMap, catchError, finalize } from 'rxjs/operators';
+import { retryWhen, mergeMap, catchError, finalize } from 'rxjs';
 
 const apiCall$ = ajax.getJSON('/api/data').pipe(
   retryWhen(errors =>
@@ -49,7 +49,7 @@ const apiCall$ = ajax.getJSON('/api/data').pipe(
     code: `// Search typeahead implementation
 import { fromEvent, of, EMPTY } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
-import { debounceTime, distinctUntilChanged, switchMap, catchError, filter, map } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, switchMap, catchError, filter, map } from 'rxjs';
 
 const searchBox = document.getElementById('search');
 const search$ = fromEvent(searchBox, 'input').pipe(
@@ -87,7 +87,7 @@ search$.subscribe(results => {
     code: `// Smart polling with exponential backoff on errors
 import { interval, timer, throwError, EMPTY } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
-import { switchMap, retry, catchError, takeWhile, expand, tap } from 'rxjs/operators';
+import { switchMap, retry, catchError, takeWhile, expand, tap } from 'rxjs';
 
 let errorCount = 0;
 const maxErrors = 3;
@@ -134,7 +134,7 @@ const dynamicPolling$ = ajax.getJSON('/api/data').pipe(
     operators: ['webSocket', 'retryWhen', 'delay', 'tap', 'catchError'],
     code: `// WebSocket with automatic reconnection
 import { webSocket } from 'rxjs/webSocket';
-import { retry, retryWhen, delay, tap, catchError } from 'rxjs/operators';
+import { retry, retryWhen, delay, tap, catchError } from 'rxjs';
 import { EMPTY } from 'rxjs';
 
 const createWebSocketSubject = () =>
@@ -190,7 +190,7 @@ resilientSocket$.subscribe({
     operators: ['combineLatest', 'debounceTime', 'distinctUntilChanged', 'switchMap', 'map'],
     code: `// Reactive form validation
 import { fromEvent, combineLatest, of, timer } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap, map, startWith } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, switchMap, map, startWith } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
 
 const emailInput = document.getElementById('email') as HTMLInputElement;
@@ -254,7 +254,7 @@ formValid$.subscribe(validation => {
     operators: ['scan', 'shareReplay', 'distinctUntilChanged', 'pluck'],
     code: `// Simple state management with RxJS
 import { BehaviorSubject, Subject, merge } from 'rxjs';
-import { scan, shareReplay, distinctUntilChanged, map } from 'rxjs/operators';
+import { scan, shareReplay, distinctUntilChanged, map } from 'rxjs';
 
 interface AppState {
   user: { id: string; name: string } | null;
@@ -341,7 +341,7 @@ state$.subscribe(state => console.log('State updated:', state));`,
     operators: ['shareReplay', 'merge', 'switchMap', 'startWith'],
     code: `// Cache with refresh strategy
 import { BehaviorSubject, Subject, timer, merge } from 'rxjs';
-import { switchMap, shareReplay, startWith, tap } from 'rxjs/operators';
+import { switchMap, shareReplay, startWith, tap } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
 
 class CachedDataService {
@@ -460,7 +460,7 @@ ${pattern.code.split('\n').map(line => '    ' + line).join('\n')}
     adapted.code = `// Vue 3 Composition API implementation
 import { ref, onBeforeUnmount } from 'vue';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntil } from 'rxjs';
 
 export function useRxJSPattern() {
   const destroy$ = new Subject();

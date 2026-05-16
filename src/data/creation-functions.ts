@@ -56,13 +56,13 @@ export const creationFunctionDatabase: Record<string, CreationFunctionInfo> = {
     name: 'ajax',
     category: 'http',
     description: 'Creates an Observable for AJAX requests',
-    docUrl: `${DOC_BASE_URL}/creation-functions/http/ajax`,
+    docUrl: `${DOC_BASE_URL}/creation-functions/http-communication/ajax`,
   },
   'fromFetch': {
     name: 'fromFetch',
     category: 'http',
     description: 'Creates an Observable from Fetch API',
-    docUrl: `${DOC_BASE_URL}/creation-functions/http/fromFetch`,
+    docUrl: `${DOC_BASE_URL}/creation-functions/http-communication/fromFetch`,
   },
 
   // combination
