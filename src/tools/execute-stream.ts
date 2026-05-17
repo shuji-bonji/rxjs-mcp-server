@@ -14,12 +14,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Determine the worker path - handle both src (vitest) and dist (production) scenarios
+ * Determine the worker path - handle both src (vitest) and dist (production) scenarios.
+ *
+ * Cross-platform: uses `path.sep` so that the check works on both POSIX (`/src/`)
+ * and Windows (`\src\`). Splitting `__dirname` by `path.sep` and looking for
+ * a `src` segment is more robust than substring matching against a hard-coded
+ * `/src/` literal, which silently fails on Windows.
  */
 function getWorkerPath(): string {
-  if (__dirname.includes('/src/')) {
-    // Running from src - look for compiled worker in dist
-    return path.resolve(__dirname, '../../dist/tools/execute-stream-worker.js');
+  const segments = __dirname.split(path.sep);
+  if (segments.includes('src')) {
+    // Running from src (e.g. vitest) — look for compiled worker in dist
+    return path.resolve(__dirname, '..', '..', 'dist', 'tools', 'execute-stream-worker.js');
   }
   // Running from dist
   return path.join(__dirname, 'execute-stream-worker.js');

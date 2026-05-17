@@ -399,6 +399,64 @@ describe('detect_memory_leak tool', () => {
     });
   });
 
+  describe('handler - modern Angular auto-cleanup (v0.4.1)', () => {
+    it('should NOT flag takeUntilDestroyed() as leak', async () => {
+      const result = await detectMemoryLeakTool.handler({
+        code: `
+          this.service.data$
+            .pipe(takeUntilDestroyed())
+            .subscribe(data => this.data = data);
+        `,
+        componentLifecycle: 'angular',
+      });
+
+      // No leak — modern Angular idiom recognized
+      expect(result.content[0].text).toContain('No obvious leaks detected');
+      // Auto-cleanup detection acknowledged
+      expect(result.content[0].text).toContain('takeUntilDestroyed');
+    });
+
+    it('should NOT flag DestroyRef pattern as leak', async () => {
+      const result = await detectMemoryLeakTool.handler({
+        code: `
+          private destroyRef = inject(DestroyRef);
+          ngOnInit() {
+            this.data$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+          }
+        `,
+        componentLifecycle: 'angular',
+      });
+
+      expect(result.content[0].text).toContain('No obvious leaks detected');
+    });
+
+    it('should NOT recommend OnDestroy when takeUntilDestroyed is used', async () => {
+      const result = await detectMemoryLeakTool.handler({
+        code: `
+          @Component({})
+          export class Foo {
+            constructor() {
+              this.data$.pipe(takeUntilDestroyed()).subscribe();
+            }
+          }
+        `,
+        componentLifecycle: 'angular',
+      });
+
+      expect(result.content[0].text).not.toContain('Implement OnDestroy');
+    });
+
+    it('should NOT flag firstValueFrom() as leak', async () => {
+      const result = await detectMemoryLeakTool.handler({
+        code: `
+          const value = await firstValueFrom(this.data$);
+        `,
+      });
+
+      expect(result.content[0].text).toContain('No obvious leaks detected');
+    });
+  });
+
   describe('handler - edge cases', () => {
     it('should handle code with no subscriptions', async () => {
       const result = await detectMemoryLeakTool.handler({

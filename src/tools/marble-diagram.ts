@@ -112,7 +112,7 @@ function generateExplanation(events: Array<{ time: number; value?: any; type: st
   
   parts.push(`Stream with ${events.length} event(s):`);
   
-  events.forEach((event, index) => {
+  events.forEach((event) => {
     const timeStr = `${event.time}ms`;
     switch (event.type) {
       case 'error':
@@ -151,15 +151,23 @@ function generateExplanation(events: Array<{ time: number; value?: any; type: st
   return parts.join('\n');
 }
 
-// Parse RxJS marble syntax
-function parseMarbleSyntax(marble: string, values?: Record<string, any>): Array<{ time: number; value: any; type: string }> {
-  const events: Array<{ time: number; value: any; type: string }> = [];
+// Parse RxJS marble syntax.
+//
+// Currently unused by the public tool surface — kept as an internal helper
+// for a future `generate_marble({ marble: '--a-b-|' })` input mode that
+// would parse marble strings directly instead of expecting `events`.
+// Exported with `_` prefix so the unused-vars rule allows it.
+export function _parseMarbleSyntax(
+  marble: string,
+  values?: Record<string, unknown>,
+): Array<{ time: number; value: unknown; type: string }> {
+  const events: Array<{ time: number; value: unknown; type: string }> = [];
   const frameSize = 10; // Each frame is 10ms
-  
+
   for (let i = 0; i < marble.length; i++) {
     const char = marble[i];
     const time = i * frameSize;
-    
+
     switch (char) {
       case '-':
         // Frame boundary, no event
@@ -174,14 +182,15 @@ function parseMarbleSyntax(marble: string, values?: Record<string, any>): Array<
       case ')':
         // Grouping, ignore for now
         break;
-      default:
+      default: {
         // Value emission
         const value = values?.[char] ?? char;
         events.push({ time, value, type: 'next' });
         break;
+      }
     }
   }
-  
+
   return events;
 }
 

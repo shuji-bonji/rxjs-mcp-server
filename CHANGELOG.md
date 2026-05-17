@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-05-17
+
+### Changed
+- **`detect_memory_leak`**: 単純な subscribe/unsubscribe カウント比較を廃止し、`takeUntilDestroyed()`（Angular 16+）/ `take(N)` / `first()` / `firstValueFrom` / `useEffect` cleanup / `onUnmounted` 等の **自動クリーンアップパターンを認識** するように改修。これにより、Angular 16+ の `takeUntilDestroyed()` 等を使った現代的なコードに対する false positive を解消。
+- **`detect_memory_leak`** の description に "Recognizes modern auto-cleanup patterns" を明記。
+- **memory-leak と lint_rxjs の検出ロジック共通化**: `src/shared/subscription-analysis.ts` を新設し、サブスクリプション解析のヒューリスティクスを一元化。
+
+### Fixed
+- **`getWorkerPath()` の Windows 非互換**: `__dirname.includes('/src/')` というハードコードを `path.sep` 経由のセグメント走査に変更。Windows (`\src\`) でも src/dist 判定が正しく動作するように。
+- **`marble-diagram.ts`**: 未使用変数 `index` 削除、case block の `const value` をブロック化、内部ヘルパー `parseMarbleSyntax` の名前を `_parseMarbleSyntax`（未使用許可・将来の marble syntax 入力対応用）に整理。
+
+### Infrastructure
+- **ESLint 自己適用**: `eslint.config.js`（flat config）を追加し、`@eslint/js` + `typescript-eslint` を全 `src/` に、`eslint-plugin-rxjs-x` を `execute-stream*.ts` のみに（type-aware）適用。`npm run lint` / `npm run lint:fix` を追加し、CI workflow にも `Lint` ステップを追加。
+- **Dependabot**: `.github/dependabot.yml` を追加。npm 依存（dev/prod グループ分け、週次）と GitHub Actions（月次）を自動更新。
+- **MCP integration test の vitest 化**: `src/tools/mcp-integration.test.ts` を新規追加。子プロセスとして `dist/index.js` を spawn し、JSON-RPC で全 6 ツールを実機テスト。`npm test` で一括実行可能（dist 未ビルド時は自動 skip）。既存の `test-mcp-server.mjs` は legacy 用に残存（`npm run test:mcp`）。
+
 ## [0.4.0] - 2026-05-17
 
 ### Added
