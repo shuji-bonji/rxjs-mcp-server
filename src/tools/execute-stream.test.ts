@@ -428,4 +428,36 @@ describe('execute_stream tool', () => {
       expect(result.content[0].text).toContain('Observable');
     });
   });
+  describe('handler - error path timeline', () => {
+    // `finalize()` used to push a `complete` entry unconditionally. The
+    // rendered timeline draws `|` for that entry, and the Legend defines `|` as
+    // stream completion, so an errored stream reported that it had completed.
+    it('does not mark an errored stream as completed', async () => {
+      const result = await executeStreamTool.handler({
+        code: "return of(1, 2, 3).pipe(map(x => { if (x === 2) throw new Error('boom'); return x; }));",
+        takeCount: 10,
+        timeout: 3000,
+      });
+
+      const text = result.content[0].text;
+      const timeline = text.split('### Emission Timeline')[1] ?? '';
+
+      expect(text).toContain('Status:** ❌ Error');
+      expect(timeline).toContain('✗');
+      expect(timeline).not.toContain('|');
+    });
+
+    it('still marks a stream that completes normally', async () => {
+      const result = await executeStreamTool.handler({
+        code: 'return of(1, 2, 3);',
+        takeCount: 10,
+        timeout: 3000,
+      });
+
+      const timeline = result.content[0].text.split('### Emission Timeline')[1] ?? '';
+
+      expect(result.content[0].text).toContain('Status:** ✅ Completed');
+      expect(timeline).toContain('|');
+    });
+  });
 });

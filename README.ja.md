@@ -65,7 +65,7 @@ ClaudeなどのAIアシスタントから直接RxJSストリームを実行、�
 ### 🔍 RxJS Lint（v0.4.0〜）
 - eslint-plugin-rxjs-x ルールの正規表現ベース再実装
 - ESLint / TypeScript パーサー不要で即チェック
-- recommended（20ルール）/ strict（28ルール）の2段階
+- recommended（20 ルール）/ strict（28 ルール）の 2 段階。eslint-plugin-rxjs-x の config と同じ内訳
 - Angular / React / Vue 固有のフレームワークルール対応
 
 ## インストール
@@ -224,8 +224,12 @@ RxJSコードスニペットを静的解析し、一般的な問題とベスト�
 
 **Config レベル:**
 
-- `recommended` — 最も一般的な問題をカバーする20ルール
-- `strict` — スタイルチェック含む全ルール（finnish, no-exposed-subjects 等）
+- `recommended` — 最も一般的な問題をカバーする 20 ルール
+- `strict` — eslint-plugin-rxjs-x の `strict` と同じ 28 ルール（no-exposed-subjects,
+  no-misused-observables, no-unnecessary-collection 等）
+
+`finnish` は本家と同じくどちらの config にも入っておらず、`rules: ["finnish"]` と
+名指ししたときだけ動く。フレームワーク固有チェックは両レベルに加算される。
 
 **フレームワーク固有チェック:**
 

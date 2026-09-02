@@ -235,7 +235,11 @@ Lint RxJS code snippets for common issues and best practices. Based on [eslint-p
 **Config levels:**
 
 - `recommended` — 20 rules covering the most common issues
-- `strict` — All rules including style checks (finnish, no-exposed-subjects, etc.)
+- `strict` — the 28 rules in eslint-plugin-rxjs-x's `strict` (no-exposed-subjects,
+  no-misused-observables, no-unnecessary-collection, etc.)
+
+`finnish` is in neither config, matching the plugin, and runs only when named:
+`rules: ["finnish"]`. Framework-specific checks are added on top of both levels.
 
 **Framework-specific checks:**
 

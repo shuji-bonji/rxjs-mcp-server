@@ -310,4 +310,75 @@ source$.subscribe(async () => {});`,
       expect(result.content[0].text).toContain('error(s)');
     });
   });
+  describe('handler - config membership', () => {
+    // `strict` here has to mean what `strict` means in eslint-plugin-rxjs-x.
+    // `finnish` is in neither of the plugin's configs, and 1.0.6 added
+    // `no-unnecessary-collection` to strict.
+    it('does not run finnish under strict', async () => {
+      const result = await lintRxjsTool.handler({
+        code: 'const source = obs.pipe(map(x => x));',
+        config: 'strict',
+      });
+
+      expect(result.content[0].text).not.toContain('**finnish**');
+    });
+
+    it('runs finnish when it is asked for by name', async () => {
+      const result = await lintRxjsTool.handler({
+        code: 'const source = obs.pipe(map(x => x));',
+        rules: ['finnish'],
+      });
+
+      expect(result.content[0].text).toContain('**finnish**');
+    });
+  });
+
+  describe('handler - no-unnecessary-collection', () => {
+    // The eight failing examples from the rule's own documentation.
+    it.each([
+      ['combineLatest([of(1)])', 'combineLatest'],
+      ["forkJoin([of('data')])", 'forkJoin'],
+      ['combineLatest({ value: of(1) })', 'combineLatest'],
+      ["forkJoin({ data: of('hello') })", 'forkJoin'],
+      ['merge(of(1))', 'merge'],
+      ['zip(of(1))', 'zip'],
+      ['concat(of(1))', 'concat'],
+      ['race(of(1))', 'race'],
+    ])('flags %s', async (snippet) => {
+      const result = await lintRxjsTool.handler({
+        code: `const a$ = ${snippet};`,
+        config: 'strict',
+      });
+
+      expect(result.content[0].text).toContain('**no-unnecessary-collection**');
+    });
+
+    // The passing examples, plus the member calls that share these names.
+    it.each([
+      'combineLatest([of(1), of(2)])',
+      'forkJoin({ a: of(1), b: of(2) })',
+      'merge(of(1), of(2))',
+      'combineLatest(sources)',
+      'merge(...streams)',
+      "'a'.concat('b')",
+      'Promise.race([p1])',
+      '[1].concat([2])',
+    ])('does not flag %s', async (snippet) => {
+      const result = await lintRxjsTool.handler({
+        code: `const a$ = ${snippet};`,
+        config: 'strict',
+      });
+
+      expect(result.content[0].text).not.toContain('**no-unnecessary-collection**');
+    });
+
+    it('is not in the recommended config', async () => {
+      const result = await lintRxjsTool.handler({
+        code: 'const a$ = merge(of(1));',
+        config: 'recommended',
+      });
+
+      expect(result.content[0].text).not.toContain('**no-unnecessary-collection**');
+    });
+  });
 });
