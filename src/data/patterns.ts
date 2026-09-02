@@ -508,10 +508,13 @@ export function adaptPatternForFramework(
       { names: ['Subject'], from: 'rxjs', raw: '' },
       ...imports,
     ]);
+    // `takeUntil` is named in the comment but not imported: nothing in the
+    // emitted body uses it yet, and an unused import is a lint error in most
+    // Angular projects. The comment says to add both.
     adapted.code = `// Angular — the framework-neutral pattern, moved into a service.
 // Replace the DOM access with a template binding or a signal, and \`ajax\` with
-// HttpClient. End each pipe with \`takeUntil(this.destroy$)\` so it stops with
-// the service.
+// HttpClient. End each pipe with \`takeUntil(this.destroy$)\` — importing
+// \`takeUntil\` from 'rxjs' — so it stops with the service.
 ${header}
 
 @Injectable({ providedIn: 'root' })
@@ -570,12 +573,15 @@ ${indent(body, 4)}
   } else if (framework === 'vue') {
     const header = renderImports([
       { names: ['ref', 'onBeforeUnmount'], from: 'vue', raw: '' },
-      { names: ['Subject', 'takeUntil'], from: 'rxjs', raw: '' },
+      { names: ['Subject'], from: 'rxjs', raw: '' },
       ...imports,
     ]);
+    // `takeUntil` is not imported here for the same reason as in the Angular
+    // branch: it appears only in the commented-out subscription below.
     adapted.code = `// Vue 3 Composition API — the framework-neutral pattern, moved into a composable.
 // Replace the DOM access with a template ref, and \`ajax\` with your data-fetching
-// layer. End each pipe with \`takeUntil(destroy$)\` so it stops with the component.
+// layer. End each pipe with \`takeUntil(destroy$)\` — importing \`takeUntil\` from
+// 'rxjs' — so it stops with the component.
 ${header}
 
 export function useRxJSPattern() {

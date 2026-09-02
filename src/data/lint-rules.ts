@@ -8,7 +8,19 @@
  */
 
 export type LintSeverity = 'error' | 'warning' | 'info';
+
+/** The config levels a caller can ask for. Mirrors eslint-plugin-rxjs-x. */
 export type LintConfig = 'recommended' | 'strict';
+
+/**
+ * Which config a rule belongs to.
+ *
+ * `optional` is not a config a caller can ask for: it marks a rule that
+ * eslint-plugin-rxjs-x ships but does not put in either `recommended` or
+ * `strict`. Such a rule runs only when named in the `rules` parameter, so
+ * `strict` here means what `strict` means in the plugin.
+ */
+export type LintRuleConfig = LintConfig | 'optional';
 export type FrameworkContext = 'angular' | 'react' | 'vue' | 'none';
 
 export interface LintDiagnostic {
@@ -24,7 +36,7 @@ export interface LintRule {
   name: string;
   description: string;
   severity: LintSeverity;
-  config: LintConfig;
+  config: LintRuleConfig;
   /** Whether this rule requires type information (cannot be fully checked with regex) */
   requiresTypeInfo: boolean;
   docUrl: string;
@@ -888,15 +900,120 @@ const noSubclass: LintRule = {
   },
 };
 
+/**
+ * Read the argument list of a call whose opening parenthesis is at `open`.
+ * Bracket counting rather than a regular expression, so a nested call or an
+ * object literal inside the arguments does not truncate the result.
+ */
+function readCallArgs(code: string, open: number): string | null {
+  let depth = 0;
+  for (let i = open; i < code.length; i++) {
+    const ch = code[i];
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') {
+      depth--;
+      if (depth === 0) return code.slice(open + 1, i);
+    }
+  }
+  return null;
+}
+
+/** Split on commas that are not inside brackets, quotes or a template string. */
+function splitTopLevel(args: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let current = '';
+  for (let i = 0; i < args.length; i++) {
+    const ch = args[i];
+    if (quote) {
+      if (ch === quote && args[i - 1] !== '\\') quote = null;
+      current += ch;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch;
+      current += ch;
+      continue;
+    }
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    if (ch === ',' && depth === 0) {
+      parts.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim() !== '') parts.push(current.trim());
+  return parts;
+}
+
+const noUnnecessaryCollection: LintRule = {
+  name: 'no-unnecessary-collection',
+  description: 'Disallow passing a single observable to a combinator that takes several',
+  severity: 'warning',
+  config: 'strict',
+  requiresTypeInfo: true,
+  docUrl: `${DOC_BASE}/no-unnecessary-collection.md`,
+  check(code) {
+    const diagnostics: LintDiagnostic[] = [];
+    // `.concat(` and `Promise.race(` are excluded by the lookbehind: a member
+    // call is String/Array/Promise, not the RxJS creation function.
+    const pattern = /(?<![.\w$])\b(combineLatest|forkJoin|merge|zip|concat|race)\s*\(/g;
+
+    for (const m of findAll(code, pattern)) {
+      const name = m[1];
+      const args = readCallArgs(code, m.index + m[0].length - 1);
+      if (args === null) continue;
+
+      const top = splitTopLevel(args);
+      if (top.length !== 1) continue;
+
+      const only = top[0];
+      if (only.startsWith('...')) continue;
+
+      let shape: string | null = null;
+      if (only.startsWith('[')) {
+        const inner = splitTopLevel(only.slice(1, -1));
+        if (inner.length === 1) shape = 'an array holding one observable';
+      } else if (only.startsWith('{')) {
+        const inner = splitTopLevel(only.slice(1, -1));
+        if (inner.length === 1) shape = 'an object holding one observable';
+      } else if (only.includes('(')) {
+        // A call expression — `of(1)`, `source$.pipe(...)`. A bare identifier is
+        // skipped on purpose: `combineLatest(sources)` may well be an array.
+        shape = 'a single observable';
+      }
+      if (shape === null) continue;
+
+      diagnostics.push({
+        rule: this.name,
+        severity: this.severity,
+        message: `${name}() is given ${shape}. The combination does nothing — use the observable itself.`,
+        line: lineAt(code, m.index),
+        suggestion: `Replace with the observable alone, adding .pipe(map(...)) if the collection shape is what the consumer needs.`,
+        docUrl: this.docUrl,
+      });
+    }
+    return diagnostics;
+  },
+};
+
 // ============================================
-// Additional Rules (not in configs, but useful)
+// Rules eslint-plugin-rxjs-x ships but puts in neither config
 // ============================================
 
 const finnish: LintRule = {
   name: 'finnish',
   description: 'Enforce Finnish notation ($ suffix) for Observable variables',
   severity: 'info',
-  config: 'strict', // Not in official recommended/strict, but commonly enabled
+  // Not in the plugin's `recommended` or `strict` in 0.7.x or 1.x — it is a
+  // naming convention, and the plugin leaves the choice to the project. It ran
+  // under `strict` here until v0.5.3, which made this server's `strict` mean
+  // something the plugin's `strict` does not. Ask for it by name instead:
+  // rules: ["finnish"].
+  config: 'optional',
   requiresTypeInfo: true,
   docUrl: `${DOC_BASE}/finnish.md`,
   check(code) {
@@ -1082,16 +1199,22 @@ export const allLintRules: LintRule[] = [
   noShareReplayBeforeTakeuntil,
   noMisusedObservables,
   noSubclass,
+  noUnnecessaryCollection,
+  // Shipped by the plugin but in neither config — reachable via `rules`
   finnish,
   // Framework-specific
   ...frameworkRules,
 ];
 
-/** Get rules for a given config level */
+/**
+ * Get rules for a given config level.
+ *
+ * `optional` rules are in neither level. They run only when named in the
+ * `rules` parameter, which filters `allLintRules` directly.
+ */
 export function getRulesForConfig(config: LintConfig): LintRule[] {
   if (config === 'strict') {
-    return allLintRules;
+    return allLintRules.filter(r => r.config !== 'optional');
   }
-  // recommended: only rules with config === 'recommended'
   return allLintRules.filter(r => r.config === 'recommended');
 }

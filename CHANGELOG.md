@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-09-02
+
+v0.5.2 をプラグイン経由で呼んで見つかった 1 件と、0.5.2 の Notes に残していた 2 件。
+
+### Fixed
+
+- **エラーで終わったストリームのタイムラインに完了記号が出ていた** — `execute_stream` の出力で、`✗` の次の行に `|` が並んでいた。Legend は `|` を "Stream completion" と定義しているので、完了していないストリームが完了したと読める。原因は `src/tools/execute-stream-worker.ts` の `finalize()` で、`result.completed` の代入は `if (!errorOccurred)` で守られているのに、`result.timeline.push({ type: 'complete' })` はその外にあった。`catchError` が `EMPTY` を返すため購読自体はどちらの場合も正常に終わり、finalize が走ったことは完了の証拠にならない。push を同じ条件の中に入れた。タイムアウトの経路では購読の畳まれ方が違うため元から出ていない。
+- **`suggest_pattern` の Vue の出力が `takeUntil` を未使用のまま import していた** — この識別子はコメントアウトされた購読の行にしか現れない。ほとんどのプロジェクトで未使用 import は `no-unused-vars` のエラーになる。wrapper の import から外した。Angular 側は逆に、コメントが `takeUntil(this.destroy$)` を使えと書いておきながら import に入れていなかった。どちらも「import も足すこと」と読める文面に直し、**wrapper が足す binding は必ず本体で使われる**状態に揃えた。
+
+### Changed
+
+- **`lint_rxjs` の `strict` を eslint-plugin-rxjs-x の `strict` と一致させた** — 0.5.2 で eslint-plugin-rxjs-x を 1.0.6 に上げた際の宿題。
+  - **`no-unnecessary-collection` を追加** (1.0.6 が strict に加えたルール)。`combineLatest` / `forkJoin` / `merge` / `zip` / `concat` / `race` に観測可能なものを 1 つだけ渡している呼び出しを検出する。引数は括弧の対応を数えて読み、トップレベルのカンマで分割する。`'a'.concat('b')` や `Promise.race([p1])` のようなメンバー呼び出しは、名前の直前が `.` であることで除外する。単一引数が裸の識別子の場合 (`combineLatest(sources)`) は、それが配列変数でありうるため検出しない。ルールのドキュメントに載っている失敗例 8 件と合格例 8 件をそのままテストにした。
+  - **`finnish` を `strict` から外した**。このルールは 0.7.7 の strict にも 1.0.6 の strict にも入っていない (命名規約なので、本家はプロジェクトの選択に委ねている)。`strict` に入れていたせいで、本サーバーの `strict` が本家の `strict` と違うものを指していた。ルール自体は残っており、`rules: ["finnish"]` と名指しすれば動く。
+  - `LintRule.config` に `optional` を追加した。本家が持っているがどちらの config にも入れていないルールを表す。`getRulesForConfig('strict')` はこれを除外する。
+  - この結果、`strict` のコアルールは 28 件で本家と一致する (recommended は 20 件で元から一致)。フレームワーク固有ルール 4 件は従来どおり両レベルに加算される。
+
+### Added
+
+- `src/data/patterns.test.ts` に 2 ケース — wrapper が足す import (`Injectable` / `OnDestroy` / `Subject` / `useEffect` / `useState` / `useRef` / `Subscription` / `ref` / `onBeforeUnmount`) がコメント以外の行で使われていること、wrapper が `takeUntil` を import しないこと。**Vue の import を元に戻すと落ちる**ことを確認済み。
+- `src/tools/execute-stream.test.ts` に 2 ケース — エラーで終わったストリームのタイムラインに `|` が無いこと、正常完了したストリームには有ること。
+- `src/tools/lint-rxjs.test.ts` に 19 ケース — `no-unnecessary-collection` の失敗例 8 件と合格例 8 件、recommended では動かないこと、`finnish` が strict では動かず `rules` で名指しすれば動くこと。
+- テストは 255 件から 278 件になった。
+
 ## [0.5.2] - 2026-09-02
 
 ### Changed

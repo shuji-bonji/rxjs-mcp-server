@@ -88,4 +88,55 @@ describe('adaptPatternForFramework', () => {
     const adapted = adaptPatternForFramework(patterns['polling'], 'vanilla');
     expect(adapted.code).toBe(patterns['polling'].code);
   });
+  // `takeUntil` used to be imported by the Vue wrapper although it appeared only
+  // in the commented-out subscription, and the Angular wrapper's comment named it
+  // without importing it. An unused import is an error under most projects'
+  // no-unused-vars, so the wrapper must not add a binding the emitted code does
+  // not use.
+  it('uses every binding the wrapper itself imports', () => {
+    const WRAPPER_IMPORTS: Record<string, string[]> = {
+      angular: ['Injectable', 'OnDestroy', 'Subject'],
+      react: ['useEffect', 'useState', 'useRef', 'Subscription'],
+      vue: ['ref', 'onBeforeUnmount', 'Subject'],
+    };
+
+    for (const [name, pattern] of Object.entries(patterns)) {
+      for (const framework of FRAMEWORKS) {
+        const code = adaptPatternForFramework(pattern, framework).code;
+        // Drop comments and the import block: what is left is the code that runs.
+        const body = code
+          .split('\n')
+          .filter(line => !/^\s*\/\//.test(line) && !/^import\s/.test(line))
+          .join('\n');
+
+        for (const binding of WRAPPER_IMPORTS[framework]) {
+          expect(
+            new RegExp(`\\b${binding}\\b`).test(body),
+            `${name} / ${framework}: ${binding} is imported but never used`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('does not import takeUntil, which only appears in guidance comments', () => {
+    for (const [name, pattern] of Object.entries(patterns)) {
+      for (const framework of FRAMEWORKS) {
+        const code = adaptPatternForFramework(pattern, framework).code;
+        const importsTakeUntil = code
+          .split('\n')
+          .filter(line => /^import\s/.test(line))
+          .some(line => /\btakeUntil\b/.test(line));
+
+        // A pattern that uses takeUntil in its own body still imports it — this
+        // only asserts the wrapper does not add the binding on its own.
+        const usesTakeUntil = code
+          .split('\n')
+          .filter(line => !/^\s*\/\//.test(line) && !/^import\s/.test(line))
+          .some(line => /\btakeUntil\b/.test(line));
+
+        expect(importsTakeUntil && !usesTakeUntil, `${name} / ${framework}`).toBe(false);
+      }
+    }
+  });
 });

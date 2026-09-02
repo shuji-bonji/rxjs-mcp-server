@@ -209,11 +209,17 @@ async function executeCode(input: WorkerInput): Promise<WorkerResult> {
           }),
           finalize(() => {
             clearTimeout(timeoutHandle);
+            // A stream that errored did not complete. `catchError` above returns
+            // EMPTY so this subscription ends normally either way, which is why
+            // the completion has to be read from `errorOccurred` rather than
+            // from finalize running. The timeline entry is guarded for the same
+            // reason: `|` is the completion marker in the rendered output, and
+            // drawing it after `✗` says the stream completed when it did not.
             if (!errorOccurred) {
               result.completed = true;
+              const time = Date.now() - startTime;
+              result.timeline.push({ time, type: 'complete' });
             }
-            const time = Date.now() - startTime;
-            result.timeline.push({ time, type: 'complete' });
           })
         )
         .subscribe({

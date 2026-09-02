@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/.claude-plugin/plugin.schema.json",
   "name": "rxjs-mcp",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "RxJS ストリームの実行・可視化・検査を行う MCP server (6 tools)。execute_stream は RxJS しか持たない worker thread でスニペットを評価し、発行値・タイムライン・所要時間を返す。generate_marble は ASCII マーブルダイアグラムを描く。analyze_operators / suggest_pattern は RxJS 7.8.2 に固定した同梱データを引き、rxjs.dev・GitHub ソース・バイリンガルガイドの 3 階層リンクを付ける。lint_rxjs は eslint-plugin-rxjs-x の recommended/strict ルールを正規表現で再実装したもので、ESLint を導入せずにスニペット単体を検査できる。detect_memory_leak は takeUntilDestroyed / async pipe / useEffect cleanup 等の自動クリーンアップを認識する。lint_rxjs と detect_memory_leak は型情報を持たない照合であり、プロジェクトでの ESLint 実行を置き換えるものではない。npm @shuji-bonji/rxjs-mcp を npx で起動する。",
   "author": {
     "name": "shuji-bonji",
