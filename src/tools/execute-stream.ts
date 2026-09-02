@@ -100,9 +100,14 @@ async function executeRxJSCodeInWorker(
       worker.terminate();
     });
 
-    worker.on('error', (error) => {
+    // The listener argument is typed `unknown` from @types/node 26 onward — the
+    // EventEmitter overloads no longer promise an Error — so the message is read
+    // through a narrowing check instead of off the parameter. This also holds on
+    // @types/node 20, where the parameter was already an Error.
+    worker.on('error', (error: unknown) => {
       clearTimeout(hardTimeout);
-      resolve(createErrorResult(error.message || 'Worker execution error'));
+      const message = error instanceof Error ? error.message : String(error);
+      resolve(createErrorResult(message || 'Worker execution error'));
       worker.terminate();
     });
 
