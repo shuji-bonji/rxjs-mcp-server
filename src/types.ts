@@ -1,12 +1,18 @@
 import { z } from 'zod';
 
-// Tool response structure
-export interface ToolResponse {
+// Tool response structure.
+//
+// Declared as a type alias rather than an interface on purpose: the MCP SDK's
+// tool result type carries an index signature (`[x: string]: unknown`) for the
+// `_meta` passthrough, and only type aliases get the implicit index signature
+// that makes them assignable to it. As an interface this fails to match the
+// `registerTool` callback signature.
+export type ToolResponse = {
   content: Array<{
     type: 'text';
     text: string;
   }>;
-}
+};
 
 // Tool handler function type
 export type ToolHandler = (args: unknown) => Promise<ToolResponse>;
@@ -16,7 +22,6 @@ export interface ToolDefinition {
   name: string;
   description: string;
   inputSchema: z.ZodType<any>;
-  outputSchema?: any;
   annotations?: {
     readOnlyHint?: boolean;
     destructiveHint?: boolean;

@@ -71,6 +71,12 @@ Execute, debug, and visualize RxJS streams directly from AI assistants like Clau
 
 ## Installation
 
+### Requirements
+
+- **Node.js >= 22** (`engines.node`). The MCP TypeScript SDK v2 this server is
+  built on requires Node.js >= 20; this package sets the higher floor to stay on
+  a maintained LTS line.
+
 ```bash
 # Install globally
 npm install -g @shuji-bonji/rxjs-mcp
@@ -357,6 +363,12 @@ Future Meta-MCP integration will allow seamless coordination between these tools
 │ • lint_rxjs      │
 └─────────────────┘
 ```
+
+The server is built on the **MCP TypeScript SDK v2**
+(`@modelcontextprotocol/server@^2.0.0`, protocol revision 2026-07-28). It speaks
+stdio only: `src/index.ts` hands the `createServer()` factory in `src/server.ts`
+to `serveStdio()`, which also serves clients that still speak the 2025 protocol
+revisions.
 
 ## Documentation Reference System
 

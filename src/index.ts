@@ -1,123 +1,51 @@
 #!/usr/bin/env node
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { createRequire } from 'node:module';
-import { executeStreamTool } from './tools/execute-stream.js';
-import { generateMarbleTool } from './tools/marble-diagram.js';
-import { analyzeOperatorsTool } from './tools/analyze-operators.js';
-import { detectMemoryLeakTool } from './tools/memory-leak.js';
-import { suggestPatternTool } from './tools/suggest-pattern.js';
-import { lintRxjsTool } from './tools/lint-rxjs.js';
-import { ToolHandler, ToolDefinition } from './types.js';
+import { serveStdio, type StdioServerHandle } from '@modelcontextprotocol/server/stdio';
+import { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';
 
-// Read version from package.json (single source of truth)
-const require = createRequire(import.meta.url);
-const { version } = require('../package.json') as { version: string };
+/**
+ * Handle returned by `serveStdio`. Closed on shutdown so the transport is torn
+ * down before the process exits.
+ */
+let stdioHandle: StdioServerHandle | undefined;
 
-// Server configuration
-const server = new Server(
-  {
-    name: 'rxjs-mcp',
-    version,
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
-);
+/**
+ * Start the server on stdio.
+ *
+ * `serveStdio` owns the transport and the protocol era decision: the opening
+ * exchange selects the era, one instance from the factory is pinned for the
+ * lifetime of the connection, and clients speaking the 2025 revisions are
+ * served from the same factory (`legacy: 'serve'` is the default).
+ */
+function runStdio(): void {
+  stdioHandle = serveStdio(() => createServer(), {
+    onerror: (error) => console.error(`stdio transport error: ${error.message}`),
+  });
 
-// Tool definitions
-const tools: ToolDefinition[] = [
-  executeStreamTool.definition,
-  generateMarbleTool.definition,
-  analyzeOperatorsTool.definition,
-  detectMemoryLeakTool.definition,
-  suggestPatternTool.definition,
-  lintRxjsTool.definition,
-];
+  // stdout is the JSON-RPC channel, so every log line goes to stderr.
+  console.error(`${SERVER_NAME} v${SERVER_VERSION} running on stdio`);
+}
 
-// Tool handlers mapping
-const toolHandlers: Record<string, ToolHandler> = {
-  'execute_stream': executeStreamTool.handler,
-  'generate_marble': generateMarbleTool.handler,
-  'analyze_operators': analyzeOperatorsTool.handler,
-  'detect_memory_leak': detectMemoryLeakTool.handler,
-  'suggest_pattern': suggestPatternTool.handler,
-  'lint_rxjs': lintRxjsTool.handler,
-};
-
-// Handle list tools request
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: tools.map(tool => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: zodToJsonSchema(tool.inputSchema, { target: 'openApi3' }),
-      outputSchema: tool.outputSchema,
-      annotations: tool.annotations,
-    })),
-  };
-});
-
-// Handle tool execution request
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  const handler = toolHandlers[name];
-  if (!handler) {
-    throw new McpError(
-      ErrorCode.MethodNotFound,
-      `Tool "${name}" not found. Available tools: ${Object.keys(toolHandlers).join(', ')}`
-    );
-  }
-
+async function gracefulShutdown(signal: string): Promise<void> {
+  console.error(`Received ${signal}, shutting down RxJS MCP Server...`);
   try {
-    const result = await handler(args);
-    return {
-      content: result.content,
-    };
+    await stdioHandle?.close();
+    process.exit(0);
   } catch (error) {
-    if (error instanceof McpError) {
-      throw error;
-    }
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Tool "${name}" failed: ${errorMessage}`
-    );
+    console.error('Shutdown error:', error);
+    process.exit(1);
   }
-});
+}
 
-// Start the server
-async function main() {
-  const transport = new StdioServerTransport();
-  
+function main(): void {
+  process.on('SIGINT', () => void gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => void gracefulShutdown('SIGTERM'));
+
   try {
-    await server.connect(transport);
-    console.error('RxJS MCP Server started successfully');
+    runStdio();
   } catch (error) {
     console.error('Failed to start RxJS MCP Server:', error);
     process.exit(1);
   }
 }
 
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  console.error('Shutting down RxJS MCP Server...');
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.error('Shutting down RxJS MCP Server...');
-  process.exit(0);
-});
-
-// Run the server
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+main();
