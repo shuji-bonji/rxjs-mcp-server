@@ -165,10 +165,64 @@ export function analyzeSubscriptionSafety(
   };
 }
 
+/**
+ * What a `shareReplay(...)` call in the code actually declares.
+ *
+ * The two properties are independent and have different consequences, so they
+ * are reported separately rather than folded into one "unsafe" flag:
+ *
+ * - `bounded: false` — no buffer size given, so every emission is retained for
+ *   the lifetime of the shared subscription.
+ * - `refCount: false` — the subscription to the source stays open after the
+ *   last subscriber leaves. `shareReplay(1)` is bounded but still has this.
+ */
+export interface ShareReplayReport {
+  /** A `shareReplay(` call appears in the code. */
+  present: boolean;
+  /** A buffer size is given, as `shareReplay(N)` or `{ bufferSize: N }`. */
+  bounded: boolean;
+  /** `{ refCount: true }` is given. */
+  refCount: boolean;
+}
+
+/**
+ * Read the arguments of the first `shareReplay(...)` in the code.
+ *
+ * Argument scanning is bracket-counting rather than a regular expression, so a
+ * config object nested inside the call does not truncate the match.
+ */
+export function analyzeShareReplay(code: string): ShareReplayReport {
+  const match = /shareReplay\s*\(/.exec(code);
+  if (!match) {
+    return { present: false, bounded: false, refCount: false };
+  }
+
+  let depth = 0;
+  let end = -1;
+  const start = match.index + match[0].length;
+  for (let i = start - 1; i < code.length; i++) {
+    if (code[i] === '(') depth++;
+    else if (code[i] === ')') {
+      depth--;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  const args = (end === -1 ? code.slice(start) : code.slice(start, end)).trim();
+
+  return {
+    present: true,
+    bounded: /^\d+/.test(args) || /bufferSize\s*:\s*\d+/.test(args),
+    refCount: /refCount\s*:\s*true/.test(args),
+  };
+}
+
 /** `shareReplay` without explicit `refCount: true`. Memory-leak risk. */
 export function hasUnsafeShareReplay(code: string): boolean {
-  if (!/shareReplay\s*\(/.test(code)) return false;
-  return !/refCount\s*:\s*true/.test(code);
+  const report = analyzeShareReplay(code);
+  return report.present && !report.refCount;
 }
 
 /** `fromEvent(...)` — DOM listener that requires explicit cleanup. */

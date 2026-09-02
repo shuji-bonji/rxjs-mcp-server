@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ToolImplementation, ToolResponse, CreationFunctionInfo, OperatorInfo } from '../types.js';
 import { creationFunctionDatabase } from '../data/creation-functions.js';
 import { operatorDatabase } from '../data/operators.js';
+import { analyzeShareReplay } from '../shared/subscription-analysis.js';
 
 // Input schema
 const inputSchema = z.object({
@@ -138,7 +139,7 @@ function analyzeCreationFunctions(functions: string[]): CreationFunctionInfo[] {
 }
 
 // Analyze operator chain
-function analyzeOperatorChain(operators: string[], checkPerformance: boolean) {
+function analyzeOperatorChain(operators: string[], checkPerformance: boolean, code: string) {
   const analysis = {
     operators: operators.map(op => {
       const info = operatorDatabase[op];
@@ -190,9 +191,25 @@ function analyzeOperatorChain(operators: string[], checkPerformance: boolean) {
       analysis.suggestions.push('Consider adding error handling with `catchError()` or `retry()`');
     }
 
-    // Check for potential memory leaks
-    if (operators.includes('shareReplay')) {
-      analysis.performance.push('⚠️ `shareReplay()` without buffer limit may cause memory issues');
+    // Check for potential memory leaks.
+    //
+    // The two properties of shareReplay are independent: `shareReplay(1)` gives
+    // a buffer size but no refCount, and `shareReplay({ refCount: true })` gives
+    // refCount but no buffer size. Reporting whichever is missing — instead of
+    // one fixed sentence for every call — is what keeps this from contradicting
+    // detect_memory_leak and the no-sharereplay rule in lint_rxjs.
+    const shareReplay = analyzeShareReplay(code);
+    if (shareReplay.present) {
+      if (!shareReplay.bounded) {
+        analysis.performance.push(
+          '⚠️ `shareReplay()` without a buffer size retains every emission for the lifetime of the shared subscription',
+        );
+      }
+      if (!shareReplay.refCount) {
+        analysis.performance.push(
+          '⚠️ `shareReplay()` without `refCount: true` keeps the source subscribed after the last subscriber leaves — use `shareReplay({ bufferSize: 1, refCount: true })`',
+        );
+      }
     }
 
     // Check for missing takeUntil
@@ -249,7 +266,7 @@ export const analyzeOperatorsTool: ToolImplementation = {
       }
 
       const creationAnalysis = analyzeCreationFunctions(creationFunctions);
-      const operatorAnalysis = analyzeOperatorChain(operators, input.checkPerformance);
+      const operatorAnalysis = analyzeOperatorChain(operators, input.checkPerformance, input.code);
       const alternatives = input.includeAlternatives ? suggestAlternatives(operators) : [];
 
       const parts: string[] = [

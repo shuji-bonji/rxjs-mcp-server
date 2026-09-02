@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-09-02
+
+v0.5.0 をプラグイン経由で実際に呼んで見つかった 3 件の修正。ツールの入出力の形は変わらない。
+
+### Fixed
+
+- **`suggest_pattern` が構文として通らないコードを返していた** — framework 適応は、フレームワーク非依存のパターン本体を文字列としてクラス本体やフックの中に差し込んでいた。パターン本体の先頭には `import` 文があり、続くのは `const` 宣言と実行文なので、クラス本体に置けば宣言として解釈できず、関数本体に置けば `import` が module のトップレベル以外に来る。測ると、**21 通り (7 パターン × 3 framework) すべてで import が wrapper より後ろにあり、うち Angular の 7 件は `ts.transpileModule` が `Unexpected token. A constructor, method, accessor, or property was expected.` で落ちた**。React / Vue は構文解析は通るが、型検査が `TS1232: An import declaration can only be used at the top level of a namespace or module.` を返す。
+  - `import` 文を本体から分離して wrapper の上に出し、同じ module への import は 1 行にまとめる（パターンが `'rxjs'` から複数回 import しており、wrapper 側の import と合わせると重複するため）。
+  - 本体は Angular なら `start()` メソッド、React なら `useEffect`、Vue なら composable の関数本体に入れる。宣言と実行文はいずれの位置でも合法になる。
+  - React / Vue の wrapper にあった `stream$.subscribe(setData)` を削除した。`stream$` はどのパターンにも存在しない名前で、コード上に定義のない識別子を書いていた。購読を書く位置はコメントで示す。
+  - **本体そのものは書き換えない**。`document.getElementById` や `ajax` はラップ後も残る。出力の冒頭コメントで、DOM アクセスをテンプレート束縛に、`ajax` を HttpClient に置き換えるよう名指しする。パターンごとに framework 別の実装を持つまでは、Angular として完成しているように読めて通らないコードを返すより、どこを直すか書いてある方が使える。
+- **`analyze_operators` の `shareReplay` の指摘が引数を見ていなかった** — `operators.includes('shareReplay')` が真なら常に「`shareReplay()` without buffer limit may cause memory issues」を出していた。`shareReplay(1)` にも `shareReplay({ bufferSize: 1, refCount: true })` にも同じ文が出る。バッファ上限の有無と refCount の有無は別の性質で、結果も別（前者は全発行値を保持し続ける、後者は購読者が 0 になっても元のソースの購読が残る）。`shareReplay(1)` は前者を満たし後者を満たさないので、この文は事実と食い違っていた。同じ対象について `detect_memory_leak` は refCount を、`lint_rxjs` の `no-sharereplay` は引数の形を見ており、3 つのツールが違うことを言う状態だった。
+  - `src/shared/subscription-analysis.ts` に `analyzeShareReplay()` を追加し、括弧の対応を数えて最初の `shareReplay(...)` の引数を読む（正規表現だと入れ子の config object で切れる）。`{ present, bounded, refCount }` を返し、欠けている方だけを指摘する。
+  - 既存の `hasUnsafeShareReplay()` はこの関数に委譲する形にした（`present && !refCount`）。判定は 1 箇所になる。
+- **`generate_marble` が `a` を飛ばし、自明な凡例を出していた** — 記号の割り当てが `97 + Object.keys(valueMap).length` で、その `valueMap` には数字で描いた値も入る。`0` から始まるストリームは次の値が `b` になり、凡例には `0 = 0` という行が出た。
+  - 割り当て済みの英字を数える専用のカウンタに変え、同じ値には同じ記号を割り当てる（同じ値が 2 回出ても凡例は 1 行）。
+  - 記号が値をそのまま示している場合（`0`、`"a"`）は凡例に出さない。
+  - `-` `|` `#` と空白は図が使う文字なので、1 文字の文字列値でもこれらは記号にせず英字を割り当てる。値 `'|'` が完了記号として描かれることが無くなる。
+  - 既に使われている文字は英字割り当てでも飛ばす。値 `'a'` と複雑な値が同じ図にあっても衝突しない。
+- **`generate_marble` の図が完了記号の後ろに 1 フレーム余っていた** — 図の長さが常に `maxTime + scale * 2` だったため、最後のイベントが `complete` / `error` のとき `|` や `#` の後ろに `-` が残った。終端するストリームは記号の 1 フレームだけを足すようにした。あわせて `duration || ...` を `duration !== undefined && duration > 0 ? ... : ...` に変え、`duration: 0` が既定値に落ちる経路をなくした。
+
+### Added
+
+- **`src/data/patterns.test.ts`** — framework 適応が出す TypeScript を `ts.transpileModule` に通し、21 通りすべてで構文エラーが 0 件であることを見る 6 ケース。既存のテストはすべて部分文字列の照合だったため、45 行のコードが 1 行も parse できない状態を誰も見ていなかった。**この検査は v0.5.0 の実装に対して 7/21 で落ちる**ことを確認済み。import の位置と 1 module 1 行も同時に検査する。
+- `analyze_operators` の shareReplay について 4 ケース（引数なし / `shareReplay(1)` / `{ bufferSize, refCount }` / `{ refCount }` のみ）、`generate_marble` の記号割り当てと図の長さについて 7 ケースを追加。テストは 239 件から 255 件になった。
+
 ## [0.5.0] - 2026-09-02
 
 ### Changed

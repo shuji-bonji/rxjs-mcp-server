@@ -352,4 +352,108 @@ describe('generate_marble tool', () => {
       expect(result.content[0].text).toContain('Marble Diagram');
     });
   });
+  describe('handler - marker allocation', () => {
+    // Letters used to be numbered from the size of the value map, and that map
+    // also held values drawn as their own digit. A stream starting with 0
+    // therefore skipped `a`, and the legend carried a line reading `0 = 0`.
+    it('starts letters at a even when a digit value came first', async () => {
+      const result = await generateMarbleTool.handler({
+        events: [
+          { time: 0, value: 0, type: 'next' },
+          { time: 100, value: 20, type: 'next' },
+          { time: 200, value: 60, type: 'next' },
+        ],
+        scale: 25,
+      });
+
+      const text = result.content[0].text;
+      expect(text).toContain('a = 20');
+      expect(text).toContain('b = 60');
+      expect(text).not.toContain('0 = 0');
+    });
+
+    it('gives the same marker to the same value', async () => {
+      const result = await generateMarbleTool.handler({
+        events: [
+          { time: 0, value: { id: 1 }, type: 'next' },
+          { time: 50, value: { id: 2 }, type: 'next' },
+          { time: 100, value: { id: 1 }, type: 'next' },
+        ],
+        scale: 25,
+      });
+
+      const diagram = result.content[0].text.split('```')[1].split('\n')[1];
+      expect(diagram.startsWith('a-b-a')).toBe(true);
+      expect(result.content[0].text).not.toContain('c = ');
+    });
+
+    it('never hands out a character the diagram itself uses', async () => {
+      const result = await generateMarbleTool.handler({
+        events: [
+          { time: 0, value: '|', type: 'next' },
+          { time: 50, value: '#', type: 'next' },
+        ],
+        scale: 25,
+      });
+
+      const diagram = result.content[0].text.split('```')[1].split('\n')[1];
+      expect(diagram).not.toContain('|');
+      expect(diagram).not.toContain('#');
+      expect(result.content[0].text).toContain('a = "|"');
+      expect(result.content[0].text).toContain('b = "#"');
+    });
+
+    it('does not reuse a letter already taken by a single-character value', async () => {
+      const result = await generateMarbleTool.handler({
+        events: [
+          { time: 0, value: 'a', type: 'next' },
+          { time: 50, value: { id: 1 }, type: 'next' },
+        ],
+        scale: 25,
+      });
+
+      const diagram = result.content[0].text.split('```')[1].split('\n')[1];
+      expect(diagram.startsWith('a-b')).toBe(true);
+    });
+  });
+
+  describe('handler - diagram width', () => {
+    // The tail was a flat two frames, so a stream ending in `complete` drew a
+    // dash after the completion marker.
+    it('ends at the completion marker', async () => {
+      const result = await generateMarbleTool.handler({
+        events: [
+          { time: 0, value: 1, type: 'next' },
+          { time: 100, value: null, type: 'complete' },
+        ],
+        scale: 25,
+      });
+
+      const diagram = result.content[0].text.split('```')[1].split('\n')[1];
+      expect(diagram).toBe('1---|');
+    });
+
+    it('ends at the error marker', async () => {
+      const result = await generateMarbleTool.handler({
+        events: [
+          { time: 0, value: 1, type: 'next' },
+          { time: 50, value: 'boom', type: 'error' },
+        ],
+        scale: 25,
+      });
+
+      const diagram = result.content[0].text.split('```')[1].split('\n')[1];
+      expect(diagram).toBe('1-#');
+    });
+
+    it('keeps a tail when the stream does not terminate', async () => {
+      const result = await generateMarbleTool.handler({
+        events: [{ time: 0, value: 1, type: 'next' }],
+        scale: 25,
+      });
+
+      const diagram = result.content[0].text.split('```')[1].split('\n')[1];
+      expect(diagram).toBe('1-');
+    });
+  });
 });
