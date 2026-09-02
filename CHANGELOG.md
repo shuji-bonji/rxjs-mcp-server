@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.2] - 2026-09-02
 
 ### Changed
 
@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`typescript` 7.0.2 (#18) は入れていない**。3 つ理由がある。(1) TS 7 は `@types/*` を自動で拾わないため `tsconfig.json` に `"types": ["node"]` が要る (無いと `Cannot find name 'process'` 等が 20 件出る)。(2) TS 7 のパッケージの main entry は `version` と `versionMajorMinor` しか export せず、コンパイラ API は `typescript/unstable/*` に移った。`src/data/patterns.test.ts` はその API を使っているため落ちる。(3) `eslint-plugin-rxjs-x@1.0.6` の peer が `typescript >=4.8.4 <6.1.0` で、上記の eslint 10 系と同時に入らない。(3) は上流が peer を広げるまで解決しない。
 - **`lint_rxjs` のルール台帳と 1.0.6 の差** (この版では未対応、次で整理する) — 1.0.6 は `macro` / `no-compat` / `no-tap` を削除した (いずれも本サーバーは実装していないので影響なし)。1.0.6 の strict は `no-unnecessary-collection` を含むが、本サーバーの strict には無い。逆に本サーバーの strict にある `finnish` は、0.7.7 の strict にも 1.0.6 の strict にも入っていない (版の更新とは無関係の、元からのずれ)。recommended は 20 件で一致、strict は 0.7.7 が 26 件、1.0.6 が 28 件、本サーバーが 28 件。
 - `eslint.config.js` が `src/tools/execute-stream.ts` と `execute-stream-worker.ts` に適用する rxjs-x のルールは 5 件で、0.7.7 と 1.0.6 で変わらない (`--print-config` で確認)。
+
+### Infrastructure
+
+- **`actions/checkout` と `actions/setup-node` を v4 から v7 へ** (#24 / #25) — `ci.yml` / `release.yml` / `url-validation.yml` の 3 ファイル、各 2 箇所。`release.yml` も対象なので、この版の publish が v7 での最初の実行になる。
 
 ## [0.5.1] - 2026-09-02
 
