@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **`eslint` を 9.39.5 → 10.9.1、`@eslint/js` を 9.39.5 → 10.0.1、`eslint-plugin-rxjs-x` を 0.7.7 → 1.0.6 へ** — この 3 つは同時にしか上げられない。`eslint-plugin-rxjs-x@1.0.6` の peer は `eslint ^10.0.1`、`@eslint/js@10.0.1` の peer は `eslint ^10.0.0` で、どれか 1 つだけを上げると `npm error Conflicting peer dependency` になる。dependabot は 3 つを別々の PR に分けており (#16 / #21、`@eslint/js` は PR 自体が無い)、単独ではいずれもマージできない。`eslint.config.js` (flat config) は eslint 10 で変更なしに動く。
+- **`@types/node` を 20.19.43 → 26.4.1 へ** — `engines.node` は `>=22` なので、型定義が 20 系に留まっている状態を実態に合わせた。
+- **`worker.on('error', ...)` のコールバック引数を `unknown` として扱う** — `@types/node` 26 で EventEmitter のオーバーロードが引数の型を `Error` と約束しなくなり、`error.message` が `TS18046: 'error' is of type 'unknown'` になる。`error instanceof Error` で絞ってから読む形にした。`@types/node` 20 でも同じ動作になる。
+
+### Notes
+
+- **`typescript` 7.0.2 (#18) は入れていない**。3 つ理由がある。(1) TS 7 は `@types/*` を自動で拾わないため `tsconfig.json` に `"types": ["node"]` が要る (無いと `Cannot find name 'process'` 等が 20 件出る)。(2) TS 7 のパッケージの main entry は `version` と `versionMajorMinor` しか export せず、コンパイラ API は `typescript/unstable/*` に移った。`src/data/patterns.test.ts` はその API を使っているため落ちる。(3) `eslint-plugin-rxjs-x@1.0.6` の peer が `typescript >=4.8.4 <6.1.0` で、上記の eslint 10 系と同時に入らない。(3) は上流が peer を広げるまで解決しない。
+- **`lint_rxjs` のルール台帳と 1.0.6 の差** (この版では未対応、次で整理する) — 1.0.6 は `macro` / `no-compat` / `no-tap` を削除した (いずれも本サーバーは実装していないので影響なし)。1.0.6 の strict は `no-unnecessary-collection` を含むが、本サーバーの strict には無い。逆に本サーバーの strict にある `finnish` は、0.7.7 の strict にも 1.0.6 の strict にも入っていない (版の更新とは無関係の、元からのずれ)。recommended は 20 件で一致、strict は 0.7.7 が 26 件、1.0.6 が 28 件、本サーバーが 28 件。
+- `eslint.config.js` が `src/tools/execute-stream.ts` と `execute-stream-worker.ts` に適用する rxjs-x のルールは 5 件で、0.7.7 と 1.0.6 で変わらない (`--print-config` で確認)。
+
 ## [0.5.1] - 2026-09-02
 
 v0.5.0 をプラグイン経由で実際に呼んで見つかった 3 件の修正。ツールの入出力の形は変わらない。
