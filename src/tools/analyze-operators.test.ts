@@ -273,14 +273,46 @@ describe('analyze_operators tool', () => {
       expect(result.content[0].text).toContain('error handling');
     });
 
-    it('should warn about shareReplay without buffer limit', async () => {
+    it('should report both missing properties for a bare shareReplay()', async () => {
       const result = await analyzeOperatorsTool.handler({
         code: 'source$.pipe(shareReplay());',
         checkPerformance: true,
       });
 
-      expect(result.content[0].text).toContain('shareReplay');
-      expect(result.content[0].text).toContain('memory');
+      expect(result.content[0].text).toContain('without a buffer size');
+      expect(result.content[0].text).toContain('without `refCount: true`');
+    });
+
+    // The buffer-size warning used to fire on every shareReplay call regardless
+    // of its arguments, so `shareReplay(1)` was told it had no buffer limit.
+    it('should not claim a buffer size is missing when shareReplay(1) gives one', async () => {
+      const result = await analyzeOperatorsTool.handler({
+        code: 'source$.pipe(shareReplay(1));',
+        checkPerformance: true,
+      });
+
+      expect(result.content[0].text).not.toContain('without a buffer size');
+      expect(result.content[0].text).toContain('without `refCount: true`');
+    });
+
+    it('should not warn at all when bufferSize and refCount are both given', async () => {
+      const result = await analyzeOperatorsTool.handler({
+        code: 'source$.pipe(shareReplay({ bufferSize: 1, refCount: true }));',
+        checkPerformance: true,
+      });
+
+      expect(result.content[0].text).not.toContain('without a buffer size');
+      expect(result.content[0].text).not.toContain('without `refCount: true`');
+    });
+
+    it('should report only the missing buffer size when refCount alone is given', async () => {
+      const result = await analyzeOperatorsTool.handler({
+        code: 'source$.pipe(shareReplay({ refCount: true }));',
+        checkPerformance: true,
+      });
+
+      expect(result.content[0].text).toContain('without a buffer size');
+      expect(result.content[0].text).not.toContain('without `refCount: true`');
     });
 
     it('should suggest takeUntil for cleanup with many operators', async () => {

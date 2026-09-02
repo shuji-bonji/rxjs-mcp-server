@@ -401,24 +401,128 @@ class CachedDataService {
   },
 };
 
+/** One `import ... from '...'` line, split into what it brings and where from. */
+interface ParsedImport {
+  /** Named bindings, for `import { a, b } from 'x'`. Empty for other forms. */
+  names: string[];
+  /** The module specifier. */
+  from: string;
+  /** The original line, kept verbatim for forms this does not merge. */
+  raw: string;
+}
+
 /**
- * Adapt pattern for specific framework
+ * Separate the import lines of a pattern from the statements that follow.
+ *
+ * The framework wrappers put the body inside a class method or a hook, and an
+ * `import` is a module-level declaration — leaving them mixed produces code
+ * that does not parse. Blank lines left where the imports were are dropped so
+ * the body does not start with a gap.
+ */
+function splitImports(code: string): { imports: ParsedImport[]; body: string } {
+  const imports: ParsedImport[] = [];
+  const bodyLines: string[] = [];
+
+  for (const line of code.split('\n')) {
+    const named = /^\s*import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]\s*;?\s*$/.exec(line);
+    if (named) {
+      imports.push({
+        names: named[1].split(',').map(n => n.trim()).filter(Boolean),
+        from: named[2],
+        raw: line.trim(),
+      });
+      continue;
+    }
+    if (/^\s*import\s/.test(line)) {
+      imports.push({ names: [], from: '', raw: line.trim() });
+      continue;
+    }
+    bodyLines.push(line);
+  }
+
+  while (bodyLines.length > 0 && bodyLines[0].trim() === '') bodyLines.shift();
+  while (bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === '') bodyLines.pop();
+
+  return { imports, body: bodyLines.join('\n') };
+}
+
+/**
+ * Render import lines with one line per module specifier.
+ *
+ * A pattern often imports from `'rxjs'` more than once, and the wrapper adds
+ * its own imports on top. Emitting them unmerged gives duplicate bindings.
+ */
+function renderImports(imports: ParsedImport[]): string {
+  const byModule = new Map<string, string[]>();
+  const verbatim: string[] = [];
+
+  for (const entry of imports) {
+    if (entry.names.length === 0) {
+      if (!verbatim.includes(entry.raw)) verbatim.push(entry.raw);
+      continue;
+    }
+    const existing = byModule.get(entry.from) ?? [];
+    for (const name of entry.names) {
+      if (!existing.includes(name)) existing.push(name);
+    }
+    byModule.set(entry.from, existing);
+  }
+
+  const lines = [...verbatim];
+  byModule.forEach((names, from) => {
+    lines.push(`import { ${names.join(', ')} } from '${from}';`);
+  });
+  return lines.join('\n');
+}
+
+/** Indent every non-empty line of a block. */
+function indent(code: string, spaces: number): string {
+  const pad = ' '.repeat(spaces);
+  return code
+    .split('\n')
+    .map(line => (line.trim() === '' ? '' : pad + line))
+    .join('\n');
+}
+
+/**
+ * Adapt a pattern for a specific framework.
+ *
+ * The framework-neutral body is moved into a service method or a hook, and its
+ * imports are hoisted above the wrapper. What this does NOT do is rewrite the
+ * body: a pattern that reaches the DOM with `document.getElementById` or calls
+ * `ajax` still does so after wrapping, and the comment in the output names that
+ * as the part to replace. Until each pattern carries a per-framework
+ * implementation, saying so is more use than a wrapper that reads as finished
+ * Angular but does not compile.
  */
 export function adaptPatternForFramework(
   pattern: PatternSuggestion,
   framework: string
 ): PatternSuggestion {
   const adapted = { ...pattern };
+  const { imports, body } = splitImports(pattern.code);
 
   if (framework === 'angular') {
-    adapted.code = `// Angular-specific implementation
+    const header = renderImports([
+      { names: ['Injectable', 'OnDestroy'], from: '@angular/core', raw: '' },
+      { names: ['Subject'], from: 'rxjs', raw: '' },
+      ...imports,
+    ]);
+    adapted.code = `// Angular — the framework-neutral pattern, moved into a service.
+// Replace the DOM access with a template binding or a signal, and \`ajax\` with
+// HttpClient. End each pipe with \`takeUntil(this.destroy$)\` so it stops with
+// the service.
+${header}
+
 @Injectable({ providedIn: 'root' })
 export class RxJSPatternService implements OnDestroy {
-  private destroy$ = new Subject<void>();
+  private readonly destroy$ = new Subject<void>();
 
-${pattern.code}
+  start(): void {
+${indent(body, 4)}
+  }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -430,18 +534,25 @@ ${pattern.code}
       'Consider using NgRx for complex state management',
     ];
   } else if (framework === 'react') {
-    adapted.code = `// React Hook implementation
-import { useEffect, useState, useRef } from 'react';
-import { Subscription } from 'rxjs';
+    const header = renderImports([
+      { names: ['useEffect', 'useState', 'useRef'], from: 'react', raw: '' },
+      { names: ['Subscription'], from: 'rxjs', raw: '' },
+      ...imports,
+    ]);
+    adapted.code = `// React — the framework-neutral pattern, moved into a hook.
+// Replace the DOM access with a ref or controlled input, and \`ajax\` with your
+// data-fetching layer. Subscribe the stream the body builds where the comment
+// below says so, and the cleanup will tear it down.
+${header}
 
 export function useRxJSPattern() {
   const [data, setData] = useState(null);
   const subscription = useRef<Subscription>();
 
   useEffect(() => {
-${pattern.code.split('\n').map(line => '    ' + line).join('\n')}
+${indent(body, 4)}
 
-    subscription.current = stream$.subscribe(setData);
+    // subscription.current = <the stream built above>.subscribe(setData);
 
     return () => {
       subscription.current?.unsubscribe();
@@ -457,22 +568,25 @@ ${pattern.code.split('\n').map(line => '    ' + line).join('\n')}
       'Be careful with closure stale values',
     ];
   } else if (framework === 'vue') {
-    adapted.code = `// Vue 3 Composition API implementation
-import { ref, onBeforeUnmount } from 'vue';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs';
+    const header = renderImports([
+      { names: ['ref', 'onBeforeUnmount'], from: 'vue', raw: '' },
+      { names: ['Subject', 'takeUntil'], from: 'rxjs', raw: '' },
+      ...imports,
+    ]);
+    adapted.code = `// Vue 3 Composition API — the framework-neutral pattern, moved into a composable.
+// Replace the DOM access with a template ref, and \`ajax\` with your data-fetching
+// layer. End each pipe with \`takeUntil(destroy$)\` so it stops with the component.
+${header}
 
 export function useRxJSPattern() {
-  const destroy$ = new Subject();
+  const destroy$ = new Subject<void>();
   const data = ref(null);
 
-${pattern.code}
+${indent(body, 2)}
 
-  stream$.pipe(
-    takeUntil(destroy$)
-  ).subscribe(value => {
-    data.value = value;
-  });
+  // <the stream built above>.pipe(takeUntil(destroy$)).subscribe(value => {
+  //   data.value = value;
+  // });
 
   onBeforeUnmount(() => {
     destroy$.next();

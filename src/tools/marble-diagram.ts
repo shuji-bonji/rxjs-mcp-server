@@ -23,18 +23,68 @@ function generateMarbleDiagram(
   // Sort events by time
   const sortedEvents = [...events].sort((a, b) => a.time - b.time);
   
-  // Determine diagram duration
+  // Determine diagram duration.
+  //
+  // A stream that ends with `complete` or `error` needs one frame for that
+  // marker and nothing after it; anything else gets two frames of tail so the
+  // last emission is not flush against the edge.
   const maxTime = sortedEvents.length > 0 
     ? Math.max(...sortedEvents.map(e => e.time))
     : 0;
-  const diagramDuration = duration || maxTime + scale * 2;
+  const lastEvent = sortedEvents[sortedEvents.length - 1];
+  const terminates = lastEvent?.type === 'complete' || lastEvent?.type === 'error';
+  const diagramDuration =
+    duration !== undefined && duration > 0
+      ? duration
+      : maxTime + scale * (terminates ? 1 : 2);
   
   // Calculate diagram width
   const width = Math.floor(diagramDuration / scale);
   
   // Build the timeline
   let timeline = '-'.repeat(width);
-  const valueMap: { [key: number]: string } = {};
+  
+  /** Characters the diagram itself owns — never handed out as a value marker. */
+  const RESERVED = new Set(['-', '|', '#', ' ']);
+  /** Serialized value → marker, so the same value always draws the same character. */
+  const markerForValue = new Map<string, string>();
+  /** Every marker already placed, so a letter is never handed out twice. */
+  const usedMarkers = new Set<string>();
+  /** Marker → serialized value, in the order the markers were allocated. Only
+   *  markers that do not show their own value get an entry: `0` needs no legend
+   *  line saying `0 = 0`, but `a = {"id":1}` does. */
+  const legend = new Map<string, string>();
+  let letterIndex = 0;
+
+  /** Next unused letter a–z, wrapping. */
+  function nextLetter(): string {
+    for (let attempt = 0; attempt < 26; attempt++) {
+      const letter = String.fromCharCode(97 + (letterIndex++ % 26));
+      if (!usedMarkers.has(letter)) return letter;
+    }
+    return '?';
+  }
+
+  /** The character that stands for this value on the timeline. */
+  function markerFor(value: unknown): string {
+    const serialized = JSON.stringify(value);
+    const existing = markerForValue.get(serialized);
+    if (existing) return existing;
+
+    let marker: string;
+    if (typeof value === 'string' && value.length === 1 && !RESERVED.has(value) && !usedMarkers.has(value)) {
+      marker = value;
+    } else if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 9 && !usedMarkers.has(String(value))) {
+      marker = value.toString();
+    } else {
+      marker = nextLetter();
+      legend.set(marker, serialized);
+    }
+
+    markerForValue.set(serialized, marker);
+    usedMarkers.add(marker);
+    return marker;
+  }
   
   // Place events on timeline
   sortedEvents.forEach(event => {
@@ -50,26 +100,12 @@ function generateMarbleDiagram(
           marker = '|';
           break;
         default:
-          // Use letters or numbers for values
-          if (typeof event.value === 'string' && event.value.length === 1) {
-            marker = event.value;
-          } else if (typeof event.value === 'number' && event.value >= 0 && event.value <= 9) {
-            marker = event.value.toString();
-          } else {
-            // Use letters a-z for complex values
-            const charCode = 97 + (Object.keys(valueMap).length % 26);
-            marker = String.fromCharCode(charCode);
-            valueMap[position] = JSON.stringify(event.value);
-          }
+          marker = markerFor(event.value);
           break;
       }
       
       // Replace character at position
       timeline = timeline.substring(0, position) + marker + timeline.substring(position + 1);
-      
-      if (event.type === 'next' && !valueMap[position]) {
-        valueMap[position] = JSON.stringify(event.value);
-      }
     }
   });
   
@@ -80,15 +116,11 @@ function generateMarbleDiagram(
   parts.push(timeline);
   
   // Add value references if needed
-  if (showValues && Object.keys(valueMap).length > 0) {
+  if (showValues && legend.size > 0) {
     parts.push('');
     parts.push('Values:');
-    Object.entries(valueMap).forEach(([pos, value]) => {
-      const position = parseInt(pos);
-      const marker = timeline[position];
-      if (marker && marker !== '-' && marker !== '|' && marker !== '#') {
-        parts.push(`  ${marker} = ${value}`);
-      }
+    legend.forEach((value, marker) => {
+      parts.push(`  ${marker} = ${value}`);
     });
   }
   
