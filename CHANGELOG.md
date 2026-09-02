@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-09-02
+
+### Changed
+
+- **MCP TypeScript SDK を v1 から v2 へ移行** — 依存を `@modelcontextprotocol/sdk@^1.25.0` から `@modelcontextprotocol/server@^2.0.0` に差し替えた。v1 の単一パッケージは v2 で `server` / `client` / `core` / フレームワーク別アダプタに分割され、`@modelcontextprotocol/sdk/server/index.js` のような深いパスは解決しなくなった。本サーバーは stdio 専用なので `@modelcontextprotocol/server` 1 つで足りる。
+- **stdio の起動を `serveStdio(factory)` に変更** — `new Server(...)` + `new StdioServerTransport()` + `server.connect(transport)` の手組みをやめた。`serveStdio` は transport とプロトコル世代の決定を持ち、接続ごとに factory から 1 インスタンスを固定する。返る `StdioServerHandle.close()` を SIGINT / SIGTERM のハンドラに置いた。
+- **ツール登録を `registerTool()` に変更** — `setRequestHandler(ListToolsRequestSchema, ...)` と `setRequestHandler(CallToolRequestSchema, ...)` の 2 本立て、および `toolHandlers` の表引きを廃止し、6 ツールを `server.registerTool(name, config, handler)` で登録する。未知のツール名の判定と入力スキーマの検証は SDK 側が行うため、`McpError` / `ErrorCode` の使用箇所は無くなった。
+- **`zod` を `^3.23.0` から `^4.2.0` へ** — v2 は zod 3 を受け付けない。zod 3 のままでも `npm install` も `tsc` も通り、サーバーは起動して接続まで成功するが、最初の `tools/list` が `fromJsonSchema()` を指すエラーを返す。型検査でもユニットテストでも捕まらない経路のため、宣言レンジごと更新した。4.0〜4.1 では変換に SDK 内蔵の zod が使われ、`.describe()` の説明文が JSON Schema から消えるため、下限は 4.2.0 以上が必要。
+- **`zod-to-json-schema` を削除** — v2 は `inputSchema` に渡された zod オブジェクト（Standard Schema）から JSON Schema を生成する。`zodToJsonSchema(schema, { target: 'openApi3' })` の呼び出しは不要になった。実行時依存は 4 個から 2 個 (`@modelcontextprotocol/server`, `rxjs`, `zod`) に減った。
+- **`ToolResponse` を interface から型エイリアスへ** — v2 のツール結果型は `_meta` の通過のために `[x: string]: unknown` を持つ。暗黙のインデックスシグネチャが付くのは型エイリアスだけで、interface のままでは `registerTool` のコールバック型に一致しない。
+- **`ToolDefinition.outputSchema` を削除** — どのツールも宣言しておらず、v1 では `tools/list` に `undefined` が乗っているだけだった。v2 では登録側から渡さないため、残すと「書いても効かないフィールド」になる。`structuredContent` を返すかどうかは別途決める。
+
+### Added
+
+- **`src/server.ts`** — `createServer(): McpServer` を `src/index.ts` から切り出して export した。stdio の入口が `serveStdio` に渡す factory であると同時に、プロトコルテストが `createMcpHandler` 経由でプロセス内から叩く対象でもある。`src/index.ts` は stdio の起動とシャットダウンだけになった。
+- **`instructions`** — `initialize` の応答としてクライアントへ返す射程の宣言を追加した。README はモデルが読まず、ツールの `description` はそのツールを検討する時点まで読まれない。`instructions` はツールを 1 つも呼ばないうちにクライアントのシステムコンテキストに載る。書いたのは「しないこと」で、(1) `execute_stream` は RxJS 以外のモジュールを持たない worker で動くため呼び出し元のプロジェクトのコードは動かない、(2) `lint_rxjs` と `detect_memory_leak` は型情報を持たない正規表現照合であり、指摘が 0 件であることはコードが正しいことの証拠にならない、(3) `analyze_operators` / `suggest_pattern` が参照するのは RxJS 7.8.2 に固定した同梱データで、報告されないオペレーターは「データに無い」であって「RxJS に無い」ではない、の 3 点。
+- **`src/server.test.ts`** — 実物の `Client` を in-process で繋いで検証する 6 ケース。`tools/list` が 6 ツールを JSON Schema 付きで返すこと、`.describe()` の説明文が残ること、`annotations` が届くこと、`instructions` が `initialize` の応答に載ること、`z.enum` が拒否する引数がハンドラ到達前に `isError: true` で返ること、`tools/call` で実際にストリームが動くことを見る。zod 変換の失敗は `tsc` でも既存のユニットテストでも検出できないため、このファイルが移行の合格基準を担う。
+- **`@modelcontextprotocol/client`** を devDependencies に追加（上記テスト用。実行時依存ではない）。
+- **`.claude-plugin/plugin.json`** — shuji-bonji marketplace から `/plugin install` できるようにした。`mcpServers` のキーは `rxjs` で、`npx -y @shuji-bonji/rxjs-mcp@latest` を起動する。`claude_desktop_config.json` に手で書いていた設定と同じキー名なので、プラグイン経由に切り替えてもツール名は変わらない。
+
+### Compatibility
+
+- MCP クライアントから見た挙動は変わらない。ツール名 6 つ、入力スキーマ、`annotations`、返すテキストのいずれも変更なし。
+- `serveStdio` は既定で 2025 世代のプロトコル改訂を話すクライアントも同じ factory から serve する（`legacy: 'serve'`）。`protocolVersion: '2024-11-05'` で `initialize` する既存の統合テスト（`src/tools/mcp-integration.test.ts` の 8 件、`test-mcp-server.mjs` の 7 件）は、いずれも `dist/index.js` を実際に spawn したまま無修正で通る。
+- Node.js 要件は `>=22.0.0` のまま（v2 の下限は 20）。CI の Node 22 / 24 のマトリクスも変更なし。
+- 各ツールのハンドラ内に残っている `inputSchema.parse(args)` は、SDK 側の検証と二重になる。ユニットテストがハンドラを直接呼び、`takeCount` や `timeout` の既定値をこの `parse` から得ているため残した。
+
 ## [0.4.1] - 2026-05-17
 
 ### Changed

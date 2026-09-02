@@ -70,6 +70,11 @@ ClaudeなどのAIアシスタントから直接RxJSストリームを実行、�
 
 ## インストール
 
+### 必要環境
+
+- **Node.js >= 22**（`engines.node`）。本サーバーが使う MCP TypeScript SDK v2 の
+  要件は Node.js >= 20 だが、メンテナンス中の LTS に揃えるため上限側に寄せている。
+
 ```bash
 # グローバルインストール
 npm install -g @shuji-bonji/rxjs-mcp
@@ -334,6 +339,12 @@ RxJS MCP Serverは以下と組み合わせて使用できます：
 │ • lint_rxjs      │
 └─────────────────┘
 ```
+
+本サーバーは **MCP TypeScript SDK v2**
+(`@modelcontextprotocol/server@^2.0.0`、プロトコル改訂 2026-07-28) の上に構築している。
+トランスポートは stdio のみで、`src/index.ts` が `src/server.ts` の `createServer()`
+ファクトリを `serveStdio()` に渡す。`serveStdio()` は 2025 世代のプロトコル改訂を話す
+クライアントも同じファクトリから serve する。
 
 ## コントリビューション
 

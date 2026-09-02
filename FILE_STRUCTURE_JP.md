@@ -9,14 +9,18 @@ rxjs-mcp-server/
 ├── README.md           # プロジェクトドキュメント（英語）
 ├── LICENSE             # MITライセンス
 ├── src/                # ソースコード
-│   ├── index.ts        # メインエントリーポイント
+│   ├── index.ts        # stdio の入口（serveStdio）
+│   ├── server.ts       # createServer() — ツール登録と instructions
 │   ├── types.ts        # 共通型定義
+│   ├── shared/         # ツール間で共有する解析ロジック
+│   ├── data/           # オペレーター・パターン・lint ルールのデータ
 │   └── tools/          # MCPツール実装
 │       ├── execute-stream.ts     # ストリーム実行ツール
 │       ├── marble-diagram.ts     # マーブルダイアグラム生成
 │       ├── analyze-operators.ts  # オペレーター分析
 │       ├── memory-leak.ts        # メモリリーク検出
-│       └── suggest-pattern.ts    # パターン提案
+│       ├── suggest-pattern.ts    # パターン提案
+│       └── lint-rxjs.ts          # RxJS lint
 ├── dist/               # ビルド成果物（自動生成）
 │   ├── index.js        # コンパイル済みメインファイル
 │   ├── index.js.map    # ソースマップ
@@ -43,12 +47,12 @@ flowchart LR
 
     subgraph Server["RxJS MCP Server"]
         direction TB
-        Entry["index.ts<br/>エントリーポイント"]
+        Entry["index.ts<br/>serveStdio(factory)"]
 
         subgraph Core["コア"]
-            MCPServer["MCP Server<br/>@modelcontextprotocol/sdk"]
-            Transport["StdioServerTransport<br/>標準入出力通信"]
-            Handlers["Request Handlers<br/>ツールリスト・実行"]
+            MCPServer["server.ts<br/>createServer(): McpServer"]
+            Transport["@modelcontextprotocol/server/stdio<br/>標準入出力通信"]
+            Handlers["registerTool() × 6<br/>スキーマ検証は SDK 側"]
         end
 
         subgraph Tools["ツール群"]
@@ -237,6 +241,8 @@ sequenceDiagram
 flowchart LR
     subgraph EntryPoint["エントリーポイント"]
         index["index.ts"]
+        server["server.ts"]
+        index --> server
     end
 
     subgraph TypeDefs["型定義"]
@@ -464,22 +470,32 @@ TypeScriptコンパイラの設定
 ### ソースコード（src/）
 
 #### `index.ts`
-MCPサーバーのメインエントリーポイント
-- サーバーインスタンスの初期化
-- ツールの登録と管理
-- リクエストハンドラーの設定
-- stdio通信の確立
-- グレースフルシャットダウンの処理
+stdio の入口
+- `serveStdio(() => createServer())` の呼び出し
+- SIGINT / SIGTERM を受けての `StdioServerHandle.close()`
+- 起動ログの stderr への出力（stdout は JSON-RPC の通り道なので使わない）
 
-主な責務：
-1. MCPサーバーの起動
-2. ツールリストの提供
-3. ツール実行のルーティング
-4. エラーハンドリング
+`serveStdio()` は transport とプロトコル世代の決定を持つ。接続ごとに factory から
+1 インスタンスを固定し、2025 世代のプロトコル改訂を話すクライアントも同じ factory から
+serve する（`legacy: 'serve'` が既定）。
+
+#### `server.ts`
+`createServer(): McpServer` — サーバー本体の組み立て
+- `name` / `version`（`package.json` から読む）
+- `instructions`（`initialize` の応答としてクライアントへ返す射程の宣言）
+- 6 ツールの `registerTool()` 登録
+
+stdio の入口が `serveStdio` に渡す factory であると同時に、`server.test.ts` が
+`createMcpHandler` 経由でプロセス内から叩く対象でもある。
+
+ツール一覧・入力スキーマ・ハンドラの対応は `tools/*.ts` が持ち、ここは登録だけを行う。
+`tools/list` が返す JSON Schema は SDK が `inputSchema`（zod オブジェクト）から生成する。
 
 #### `types.ts`
 プロジェクト全体で使用する型定義
-- `ToolResponse` - ツールレスポンスの構造
+- `ToolResponse` - ツールレスポンスの構造（interface ではなく型エイリアス。SDK のツール結果型が
+  `[x: string]: unknown` を持ち、暗黙のインデックスシグネチャを得られる型エイリアスでないと
+  `registerTool` のコールバック型に一致しない）
 - `ToolHandler` - ツールハンドラー関数の型
 - `ToolDefinition` - ツール定義の構造
 - `ToolImplementation` - ツール実装の構造
@@ -679,7 +695,7 @@ npm pack
 新しいツールの追加が容易：
 1. `src/tools/`に新しいツールファイルを作成
 2. `ToolImplementation`インターフェースを実装
-3. `index.ts`でツールを登録
+3. `server.ts` の `tools` 配列に追加（`registerTool` は配列を回して登録する）
 
 ### 型安全性
 TypeScriptとZodを使用した完全な型安全性：
